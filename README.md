@@ -17,7 +17,7 @@ Import a video, pick a time range on the timeline, set size / FPS / quality, the
 
 Grab the latest `ClipToGif-1.0.0-win-x64.zip` from [Releases](../../releases).
 
-Releases are published manually from the **Release** workflow. Bump `<Version>` in `src/ClipToGif/ClipToGif.csproj` before running it.
+Releases are published manually from the **Release** workflow. Bump `<Version>` in `ClipToGif.csproj` before running it.
 
 Unzip and run `ClipToGif.exe`. No Visual Studio, .NET SDK, or extra FFmpeg install is required — the runtime and FFmpeg are already in the folder.
 
@@ -35,10 +35,10 @@ Library data and exported GIFs live in `%LocalAppData%\ClipToGif\`.
 ## Build from source
 
 ```powershell
-dotnet publish src\ClipToGif\ClipToGif.csproj -c Release -r win-x64 --self-contained true -o publish
+dotnet publish ClipToGif.csproj -c Release -r win-x64 --self-contained true -o publish
 ```
 
-FFmpeg 7.x shared libraries must be in `src\ClipToGif\ffmpeg\` (`avcodec-61.dll`, `ffmpeg.exe`, …). The GitHub Actions workflow downloads them automatically when packing a release.
+FFmpeg 7.x shared libraries must be in `ffmpeg\` (`avcodec-61.dll`, `ffmpeg.exe`, …). The GitHub Actions workflow downloads them automatically when packing a release.
 
 ## License notes
 

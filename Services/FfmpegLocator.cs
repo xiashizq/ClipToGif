@@ -48,12 +48,10 @@ public static class FfmpegLocator
         if (!string.IsNullOrWhiteSpace(env))
             candidates.Add(env);
 
-        var projectDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "ffmpeg", fileName));
-        candidates.Add(projectDir);
-
-        var repoRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", ".."));
-        candidates.Add(Path.Combine(repoRoot, "tools", fileName));
-        candidates.Add(Path.Combine(repoRoot, "tools", "ffmpeg", "bin", fileName));
+        var projectDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", ".."));
+        candidates.Add(Path.Combine(projectDir, "ffmpeg", fileName));
+        candidates.Add(Path.Combine(projectDir, "tools", fileName));
+        candidates.Add(Path.Combine(projectDir, "tools", "ffmpeg", "bin", fileName));
 
         foreach (var path in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
         {

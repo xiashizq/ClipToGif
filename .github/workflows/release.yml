@@ -21,7 +21,7 @@ jobs:
       - name: Read version
         shell: pwsh
         run: |
-          [xml]$proj = Get-Content "src/ClipToGif/ClipToGif.csproj"
+          [xml]$proj = Get-Content "ClipToGif.csproj"
           $version = @($proj.Project.PropertyGroup.Version | Where-Object { $_ })[0]
           if ([string]::IsNullOrWhiteSpace($version)) {
             throw "Version is not set in ClipToGif.csproj"
@@ -32,7 +32,7 @@ jobs:
       - name: Ensure FFmpeg 7 shared binaries
         shell: pwsh
         run: |
-          $dest = Join-Path $env:GITHUB_WORKSPACE "src/ClipToGif/ffmpeg"
+          $dest = Join-Path $env:GITHUB_WORKSPACE "ffmpeg"
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
           $marker = Join-Path $dest "avcodec-61.dll"
           if (Test-Path $marker) {
@@ -63,7 +63,7 @@ jobs:
 
       - name: Publish self-contained win-x64
         run: >
-          dotnet publish src/ClipToGif/ClipToGif.csproj
+          dotnet publish ClipToGif.csproj
           -c Release
           -r win-x64
           --self-contained true

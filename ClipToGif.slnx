@@ -1,5 +1,3 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/ClipToGif/ClipToGif.csproj" />
-  </Folder>
+  <Project Path="ClipToGif.csproj" />
 </Solution>
