@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+publish/
+*.user
+*.suo
+tools/*.zip
+tools/app-err.txt
+tools/app-out.txt

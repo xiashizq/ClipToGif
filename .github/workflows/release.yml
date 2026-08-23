@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Ensure FFmpeg 7 shared binaries
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:GITHUB_WORKSPACE "src/ClipToGif/ffmpeg"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $marker = Join-Path $dest "avcodec-61.dll"
+          if (Test-Path $marker) {
+            Write-Host "FFmpeg already present, skip download."
+            exit 0
+          }
+
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.0-latest-win64-gpl-shared.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "ffmpeg-shared.zip"
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          $extract = Join-Path $env:RUNNER_TEMP "ffmpeg-extract"
+          Expand-Archive -Path $zip -DestinationPath $extract -Force
+          $bin = Get-ChildItem $extract -Directory -Recurse | Where-Object { $_.Name -eq "bin" } | Select-Object -First 1
+          if (-not $bin) { throw "FFmpeg bin folder not found in archive." }
+
+          $keep = @(
+            "avcodec-61.dll", "avdevice-61.dll", "avfilter-10.dll", "avformat-61.dll",
+            "avutil-59.dll", "postproc-58.dll", "swresample-5.dll", "swscale-8.dll",
+            "ffmpeg.exe", "ffprobe.exe"
+          )
+          foreach ($name in $keep) {
+            $from = Join-Path $bin.FullName $name
+            if (-not (Test-Path $from)) { throw "Missing $name in FFmpeg build." }
+            Copy-Item $from (Join-Path $dest $name) -Force
+          }
+          Write-Host "Copied FFmpeg binaries to $dest"
+
+      - name: Publish self-contained win-x64
+        run: >
+          dotnet publish src/ClipToGif/ClipToGif.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -p:PublishReadyToRun=true
+          -o publish
+
+      - name: Trim publish folder
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:GITHUB_WORKSPACE "publish"
+          Get-ChildItem $root -Recurse -Include *.pdb, *.xml | Remove-Item -Force
+          $junk = @("libvlc", "createdump.exe")
+          foreach ($name in $junk) {
+            $path = Join-Path $root $name
+            if (Test-Path $path) { Remove-Item $path -Recurse -Force }
+          }
+          if (-not (Test-Path (Join-Path $root "ClipToGif.exe"))) {
+            throw "ClipToGif.exe missing from publish output."
+          }
+          if (-not (Test-Path (Join-Path $root "ffmpeg/ffmpeg.exe"))) {
+            throw "ffmpeg.exe missing from publish output."
+          }
+          Get-ChildItem $root | Select-Object Name, Length
+
+      - name: Zip package
+        shell: pwsh
+        run: |
+          $name = if ($env:GITHUB_REF_TYPE -eq "tag") { "ClipToGif-$($env:GITHUB_REF_NAME)-win-x64.zip" } else { "ClipToGif-win-x64.zip" }
+          $zip = Join-Path $env:GITHUB_WORKSPACE $name
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path (Join-Path $env:GITHUB_WORKSPACE "publish\*") -DestinationPath $zip -CompressionLevel Optimal
+          "PACKAGE_NAME=$name" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Created $name ($([math]::Round((Get-Item $zip).Length / 1MB, 1)) MB)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipToGif-win-x64
+          path: ${{ github.workspace }}/${{ env.PACKAGE_NAME }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ github.workspace }}/${{ env.PACKAGE_NAME }}
+          generate_release_notes: true
