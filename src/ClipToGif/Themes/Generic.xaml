@@ -36,7 +36,7 @@
                                     Height="28"
                                     Background="#01000000"
                                     Cursor="SizeAll"
-                                    ToolTip="拖动可平移 GIF 选区"
+                                    ToolTip="{DynamicResource RangeDragTooltip}"
                                     Canvas.Top="10"
                                     Panel.ZIndex="1"/>
                             <Thumb x:Name="PART_StartThumb" Width="12" Height="28" Canvas.Top="10" Cursor="SizeWE" Panel.ZIndex="2">

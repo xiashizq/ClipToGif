@@ -2,12 +2,13 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows.Media.Imaging;
+using ClipToGif.Localization;
 
 namespace ClipToGif.Models;
 
 public sealed class GifItem : INotifyPropertyChanged
 {
-    private string _status = "完成";
+    private string _statusKey = "StatusDone";
     private long _fileSizeBytes;
     private BitmapImage? _thumbnail;
 
@@ -44,11 +45,18 @@ public sealed class GifItem : INotifyPropertyChanged
         }
     }
 
-    public string Status
+    public string StatusKey
     {
-        get => _status;
-        set => SetField(ref _status, value);
+        get => _statusKey;
+        set
+        {
+            if (!SetField(ref _statusKey, value))
+                return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Status)));
+        }
     }
+
+    public string Status => Loc.Get(_statusKey);
 
     /// <summary>内存中的缩略图，避免 Image 直接绑定路径导致文件被锁定。</summary>
     public BitmapImage? Thumbnail
@@ -63,7 +71,14 @@ public sealed class GifItem : INotifyPropertyChanged
 
     public string RangeText => $"{Start:mm\\:ss\\.f} → {End:mm\\:ss\\.f}";
 
-    public string SizeText => Height > 0 ? $"{Width}×{Height}" : $"宽 {Width}";
+    public string SizeText => Height > 0 ? $"{Width}×{Height}" : Loc.Format("GifWidthOnly", Width);
+
+    public void NotifyLocalized()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Status)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SizeText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MetaText)));
+    }
 
     public string MetaText => $"{SizeText} · {Fps:0.#} fps · Q{Quality}";
 

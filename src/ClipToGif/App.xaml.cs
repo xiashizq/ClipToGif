@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using ClipToGif.Localization;
 using Unosquare.FFME;
 
 namespace ClipToGif;
@@ -11,6 +12,11 @@ public partial class App : Application
     {
         DispatcherUnhandledException += App_OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_OnUnhandledException;
+    }
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        Loc.Initialize();
 
         try
         {
@@ -19,9 +25,12 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            ShowFatal($"无法加载 FFmpeg：{ex.Message}");
+            ShowFatal(Loc.Format("CannotLoadFfmpeg", ex.Message));
             Shutdown(-1);
+            return;
         }
+
+        base.OnStartup(e);
     }
 
     private static string ResolveFfmpegDirectory()
@@ -51,11 +60,11 @@ public partial class App : Application
     private static void CurrentDomain_OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
         var message = e.ExceptionObject is Exception ex ? ex.GetBaseException().Message : e.ExceptionObject?.ToString();
-        ShowFatal(message ?? "发生未知错误。");
+        ShowFatal(message ?? Loc.Get("UnknownError"));
     }
 
     private static void ShowFatal(string message)
     {
-        MessageBox.Show(message, "ClipToGif 无法启动", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(message, Loc.Get("StartupFailed"), MessageBoxButton.OK, MessageBoxImage.Error);
     }
 }

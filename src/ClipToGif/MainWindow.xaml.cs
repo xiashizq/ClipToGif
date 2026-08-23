@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using ClipToGif.Controls;
+using ClipToGif.Localization;
 using ClipToGif.Models;
 using ClipToGif.Services;
 using Microsoft.Win32;
@@ -46,6 +47,9 @@ public partial class MainWindow : Window
         Loaded += async (_, _) => await OnLoadedAsync();
         Activated += (_, _) => RefreshCurrentVideoExists();
         Closing += (_, _) => Persist();
+        Loc.LanguageChanged += OnLanguageChanged;
+        Closed += (_, _) => Loc.LanguageChanged -= OnLanguageChanged;
+        UpdateLanguageSwitch();
     }
 
     private async Task OnLoadedAsync()
@@ -66,7 +70,7 @@ public partial class MainWindow : Window
     {
         var path = FfmpegLocator.Find();
         FfmpegStatusText.Text = path is null
-            ? "未检测到 FFmpeg"
+            ? Loc.Get("FfmpegNotFound")
             : $"FFmpeg: {Path.GetFileName(Path.GetDirectoryName(path))}\\{Path.GetFileName(path)}";
         FfmpegStatusText.Foreground = path is null
             ? (System.Windows.Media.Brush)FindResource("DangerBrush")
@@ -113,7 +117,7 @@ public partial class MainWindow : Window
                     FileSizeBytes = g.FileSizeBytes > 0
                         ? g.FileSizeBytes
                         : gifExists ? new FileInfo(g.FilePath).Length : 0,
-                    Status = gifExists ? "完成" : "文件缺失"
+                    StatusKey = gifExists ? "StatusDone" : "StatusMissing"
                 });
             }
 
@@ -127,8 +131,8 @@ public partial class MainWindow : Window
     {
         var dialog = new OpenFileDialog
         {
-            Title = "选择视频",
-            Filter = "视频文件|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.m4v;*.flv;*.ts|所有文件|*.*",
+            Title = Loc.Get("OpenVideoTitle"),
+            Filter = $"{Loc.Get("OpenVideoFilter")}|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.m4v;*.flv;*.ts|{Loc.Get("AllFilesFilter")}|*.*",
             Multiselect = true
         };
         if (dialog.ShowDialog() == true)
@@ -169,7 +173,7 @@ public partial class MainWindow : Window
 
             try
             {
-                StatusText.Text = $"读取视频信息：{item.DisplayName}";
+                StatusText.Text = Loc.Format("ReadingVideoInfo", item.DisplayName);
                 var info = await _ffmpeg.GetMediaInfoAsync(path);
                 item.Duration = info.Duration;
                 item.Width = info.Width;
@@ -178,7 +182,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, $"无法读取视频：{item.DisplayName}\n{ex.Message}", "ClipToGif",
+                MessageBox.Show(this, $"{Loc.Format("CannotReadVideo", item.DisplayName)}\n{ex.Message}", "ClipToGif",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 continue;
             }
@@ -188,7 +192,7 @@ public partial class MainWindow : Window
         }
 
         Persist();
-        StatusText.Text = added > 0 ? $"已链接 {added} 个视频路径" : "没有新的视频可导入";
+        StatusText.Text = added > 0 ? Loc.Format("LinkedVideos", added) : Loc.Get("NoNewVideos");
         if (added > 0)
             VideoList.SelectedItem = _videos[^1];
     }
@@ -205,8 +209,8 @@ public partial class MainWindow : Window
             return;
 
         var confirm = MessageBox.Show(this,
-            $"移除视频「{video.DisplayName}」？\n不会删除已生成的 GIF 文件。",
-            "确认移除", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            Loc.Format("ConfirmRemoveVideo", video.DisplayName, Environment.NewLine),
+            Loc.Get("ConfirmRemoveTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.Yes)
             return;
 
@@ -219,7 +223,7 @@ public partial class MainWindow : Window
             _currentVideo = null;
             GifList.ItemsSource = null;
             SetWorkspaceEnabled(enabled: false, videoMissing: false);
-            StatusText.Text = "就绪";
+            StatusText.Text = Loc.Get("Ready");
         }
 
         Persist();
@@ -254,19 +258,19 @@ public partial class MainWindow : Window
         video.RefreshExists();
 
         GifList.ItemsSource = video.Gifs;
-        GifCountText.Text = $"{video.Gifs.Count} 条";
+        UpdateGifCount(video.Gifs.Count);
 
         if (video.IsMissing)
         {
             Player.ShowMissing(video.FilePath);
-            StatusText.Text = "视频文件已不存在";
+            StatusText.Text = Loc.Get("VideoMissing");
             StatusText.Foreground = (System.Windows.Media.Brush)FindResource("DangerBrush");
             SetWorkspaceEnabled(enabled: false, videoMissing: true);
             return;
         }
 
         StatusText.Foreground = (System.Windows.Media.Brush)FindResource("MutedBrush");
-        StatusText.Text = $"已链接：{video.DisplayName}";
+        StatusText.Text = Loc.Format("LinkedVideo", video.DisplayName);
         SetWorkspaceEnabled(enabled: true, videoMissing: false);
         Player.Open(video.FilePath);
 
@@ -394,7 +398,7 @@ public partial class MainWindow : Window
         _suppressRangeEvents = false;
 
         DurationStartLabel.Text = "00:00";
-        DurationEndLabel.Text = $"总时长 {FormatTime(totalSeconds)}";
+        DurationEndLabel.Text = Loc.Format("TotalDuration", FormatTime(totalSeconds));
         OnRangeChanged();
         UpdatePositionLabels(0);
         UpdatePlayerTimeText(0);
@@ -433,15 +437,17 @@ public partial class MainWindow : Window
     private void OnRangeChanged()
     {
         if (_suppressRangeEvents) return;
-        StartLabel.Text = $"起点 {FormatTime(RangeSlider.Start)}";
-        EndLabel.Text = $"终点 {FormatTime(RangeSlider.End)}";
+        StartLabel.Text = Loc.Format("RangeStart", FormatTime(RangeSlider.Start));
+        EndLabel.Text = Loc.Format("RangeEnd", FormatTime(RangeSlider.End));
         var span = RangeSlider.End - RangeSlider.Start;
         var spanText = span >= 60 ? FormatTime(span) : $"{span:0.0}s";
-        SelectionLabel.Text = span >= 30 - 0.05 ? $"选区 {spanText}（最长 30s）" : $"选区 {spanText}";
+        SelectionLabel.Text = span >= 30 - 0.05
+            ? Loc.Format("SelectionMax", spanText)
+            : Loc.Format("Selection", spanText);
     }
 
     private void UpdatePositionLabels(double seconds) =>
-        PositionLabel.Text = $"当前位置 {FormatTime(seconds)}";
+        PositionLabel.Text = Loc.Format("CurrentPosition", FormatTime(seconds));
 
     private static string FormatTime(double seconds)
     {
@@ -469,7 +475,7 @@ public partial class MainWindow : Window
     {
         if (_currentVideo is null)
         {
-            MessageBox.Show(this, "请先选择视频。", "ClipToGif", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, Loc.Get("SelectVideoFirst"), "ClipToGif", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -483,15 +489,15 @@ public partial class MainWindow : Window
         if (FfmpegLocator.Find() is null)
         {
             MessageBox.Show(this,
-                "未找到 ffmpeg.exe。\n\n请任选其一：\n1) 安装 FFmpeg 并加入 PATH\n2) 将 ffmpeg.exe 放到 tools\\ffmpeg.exe\n3) 设置环境变量 FFMPEG_PATH",
-                "缺少 FFmpeg", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Loc.Format("FfmpegMissingBody", Environment.NewLine),
+                Loc.Get("FfmpegMissingTitle"), MessageBoxButton.OK, MessageBoxImage.Warning);
             RefreshFfmpegStatus();
             return;
         }
 
         if (!TryReadSettings(out var settings, out var error))
         {
-            MessageBox.Show(this, error, "参数无效", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, error, Loc.Get("InvalidParams"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -499,14 +505,14 @@ public partial class MainWindow : Window
         var end = TimeSpan.FromSeconds(RangeSlider.End);
         if (end - start < TimeSpan.FromMilliseconds(200))
         {
-            MessageBox.Show(this, "选取区间太短，请至少选择 0.2 秒。", "ClipToGif",
+            MessageBox.Show(this, Loc.Get("RangeTooShort"), "ClipToGif",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         if (end - start > TimeSpan.FromSeconds(30))
         {
-            MessageBox.Show(this, "GIF 选区最长 30 秒，请缩短绿色区间后再生成。", "ClipToGif",
+            MessageBox.Show(this, Loc.Get("RangeTooLong"), "ClipToGif",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -529,22 +535,22 @@ public partial class MainWindow : Window
             Height = settings.Height,
             Fps = settings.Fps,
             Quality = settings.Quality,
-            Status = "生成中"
+            StatusKey = "StatusGenerating"
         };
         _currentVideo.Gifs.Insert(0, pending);
-        GifCountText.Text = $"{_currentVideo.Gifs.Count} 条";
+        UpdateGifCount(_currentVideo.Gifs.Count);
         GifList.SelectedItem = pending;
 
         _convertCts?.Cancel();
         _convertCts = new CancellationTokenSource();
         GenerateButton.IsEnabled = false;
         ProgressBar.Value = 0;
-        StatusText.Text = "正在生成 GIF…";
+        StatusText.Text = Loc.Get("GeneratingGif");
 
         var progress = new Progress<double>(p =>
         {
             ProgressBar.Value = p;
-            StatusText.Text = $"正在生成 GIF… {p:P0}";
+            StatusText.Text = Loc.Format("GeneratingGifProgress", p);
         });
 
         try
@@ -561,23 +567,23 @@ public partial class MainWindow : Window
             });
 
             pending.FileSizeBytes = new FileInfo(outputPath).Length;
-            pending.Status = "完成";
+            pending.StatusKey = "StatusDone";
             pending.RefreshThumbnail();
-            StatusText.Text = $"生成完成：{fileName}";
+            StatusText.Text = Loc.Format("GenerateComplete", fileName);
             ProgressBar.Value = 1;
             Persist();
             GifList.Items.Refresh();
         }
         catch (OperationCanceledException)
         {
-            pending.Status = "已取消";
-            StatusText.Text = "已取消生成";
+            pending.StatusKey = "StatusCanceled";
+            StatusText.Text = Loc.Get("GenerateCanceled");
         }
         catch (Exception ex)
         {
-            pending.Status = "失败";
-            StatusText.Text = "生成失败";
-            MessageBox.Show(this, ex.Message, "生成失败", MessageBoxButton.OK, MessageBoxImage.Error);
+            pending.StatusKey = "StatusFailed";
+            StatusText.Text = Loc.Get("GenerateFailed");
+            MessageBox.Show(this, ex.Message, Loc.Get("GenerateFailed"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -592,19 +598,19 @@ public partial class MainWindow : Window
 
         if (!int.TryParse(WidthBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width) || width < 16)
         {
-            error = "宽度请输入 ≥ 16 的整数。";
+            error = Loc.Get("WidthInvalid");
             return false;
         }
 
         if (!int.TryParse(HeightBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var height) || height < 0)
         {
-            error = "高度请输入 ≥ 0 的整数（0 表示按比例）。";
+            error = Loc.Get("HeightInvalid");
             return false;
         }
 
         if (!double.TryParse(FpsBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var fps) || fps is < 1 or > 60)
         {
-            error = "帧率请输入 1–60 之间的数字。";
+            error = Loc.Get("FpsInvalid");
             return false;
         }
 
@@ -625,7 +631,7 @@ public partial class MainWindow : Window
     {
         if (GifList.SelectedItem is not GifItem gif || !File.Exists(gif.FilePath))
         {
-            MessageBox.Show(this, "请先选择有效的 GIF。", "ClipToGif", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, Loc.Get("SelectValidGif"), "ClipToGif", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -652,7 +658,7 @@ public partial class MainWindow : Window
         if (_currentVideo is null || GifList.SelectedItem is not GifItem gif)
             return;
 
-        var confirm = MessageBox.Show(this, $"删除「{gif.DisplayName}」？", "确认删除",
+        var confirm = MessageBox.Show(this, Loc.Format("ConfirmDeleteGif", gif.DisplayName), Loc.Get("ConfirmDeleteTitle"),
             MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.Yes)
             return;
@@ -668,14 +674,14 @@ public partial class MainWindow : Window
         {
             // 删除失败：保留列表项并恢复缩略图
             gif.RefreshThumbnail();
-            MessageBox.Show(this, $"删除文件失败：{ex.Message}", "ClipToGif",
+            MessageBox.Show(this, Loc.Format("DeleteFailed", ex.Message), "ClipToGif",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         // 仅在文件删除成功后从列表移除
         _currentVideo.Gifs.Remove(gif);
-        GifCountText.Text = $"{_currentVideo.Gifs.Count} 条";
+        UpdateGifCount(_currentVideo.Gifs.Count);
         Persist();
     }
 
@@ -705,6 +711,58 @@ public partial class MainWindow : Window
     {
         try { Player.Pause(); } catch { /* ignore */ }
     }
+
+    private void LangZh_OnClick(object sender, RoutedEventArgs e) => SwitchLanguage(Loc.Chinese);
+
+    private void LangEn_OnClick(object sender, RoutedEventArgs e) => SwitchLanguage(Loc.English);
+
+    private void SwitchLanguage(string code)
+    {
+        if (string.Equals(code, Loc.Current, StringComparison.OrdinalIgnoreCase))
+            return;
+        Loc.SetLanguage(code);
+    }
+
+    private void UpdateLanguageSwitch()
+    {
+        var zh = string.Equals(Loc.Current, Loc.Chinese, StringComparison.OrdinalIgnoreCase);
+        LangZhButton.Style = (Style)FindResource(zh ? "LanguageChipActive" : "LanguageChip");
+        LangEnButton.Style = (Style)FindResource(zh ? "LanguageChip" : "LanguageChipActive");
+    }
+
+    private void OnLanguageChanged()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            UpdateLanguageSwitch();
+
+            RefreshFfmpegStatus();
+            UpdateGifCount(_currentVideo?.Gifs.Count ?? 0);
+            OnRangeChanged();
+            UpdatePositionLabels(RangeSlider.Position);
+            if (RangeSlider.Maximum > 1)
+                DurationEndLabel.Text = Loc.Format("TotalDuration", FormatTime(RangeSlider.Maximum));
+
+            foreach (var video in _videos)
+            {
+                video.NotifyLocalized();
+                foreach (var gif in video.Gifs)
+                    gif.NotifyLocalized();
+            }
+
+            Player.ApplyLanguage();
+
+            if (_currentVideo is null)
+                StatusText.Text = Loc.Get("Ready");
+            else if (_currentVideo.IsMissing)
+                StatusText.Text = Loc.Get("VideoMissing");
+            else
+                StatusText.Text = Loc.Format("LinkedVideo", _currentVideo.DisplayName);
+        });
+    }
+
+    private void UpdateGifCount(int count) =>
+        GifCountText.Text = Loc.Format("GifCount", count);
 
     private static string SanitizeFileName(string name)
     {

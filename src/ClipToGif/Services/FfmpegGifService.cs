@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ClipToGif.Localization;
 using ClipToGif.Models;
 
 namespace ClipToGif.Services;
@@ -74,11 +75,11 @@ public sealed class FfmpegGifService
             $"-of json \"{videoPath}\"";
 
         var psi = CreateProcess(ffprobe, args);
-        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("无法启动 FFprobe。");
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException(Loc.Get("CannotStartFfprobe"));
         var stdout = await proc.StandardOutput.ReadToEndAsync(ct);
         await proc.WaitForExitAsync(ct);
         if (proc.ExitCode != 0)
-            throw new InvalidOperationException("FFprobe 读取失败。");
+            throw new InvalidOperationException(Loc.Get("FfprobeFailed"));
 
         using var doc = JsonDocument.Parse(stdout);
         var root = doc.RootElement;
@@ -135,13 +136,13 @@ public sealed class FfmpegGifService
     {
         var ffmpeg = RequireFfmpeg();
         var psi = CreateProcess(ffmpeg, $"-i \"{videoPath}\"");
-        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("无法启动 FFmpeg。");
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException(Loc.Get("CannotStartFfmpeg"));
         var stderr = await proc.StandardError.ReadToEndAsync(ct);
         await proc.WaitForExitAsync(ct);
 
         var durationMatch = DurationRegex.Match(stderr);
         if (!durationMatch.Success)
-            throw new InvalidOperationException("无法读取视频时长。");
+            throw new InvalidOperationException(Loc.Get("CannotReadDuration"));
 
         var duration = ParseClock(durationMatch);
         var width = 480;
@@ -203,7 +204,7 @@ public sealed class FfmpegGifService
             $"-vf \"{filter}\" -loop 0 \"{request.OutputPath}\"";
 
         var psi = CreateProcess(ffmpeg, args);
-        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("无法启动 FFmpeg。");
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException(Loc.Get("CannotStartFfmpeg"));
 
         var stderrBuilder = new StringBuilder();
         proc.ErrorDataReceived += (_, e) =>
@@ -238,13 +239,13 @@ public sealed class FfmpegGifService
         {
             var msg = stderrBuilder.ToString();
             throw new InvalidOperationException(string.IsNullOrWhiteSpace(msg)
-                ? $"FFmpeg 失败，退出码 {proc.ExitCode}"
+                ? Loc.Format("FfmpegExitFailed", proc.ExitCode)
                 : msg.Split('\n').Reverse().FirstOrDefault(l => !string.IsNullOrWhiteSpace(l))
-                  ?? $"FFmpeg 失败，退出码 {proc.ExitCode}");
+                  ?? Loc.Format("FfmpegExitFailed", proc.ExitCode));
         }
 
         if (!File.Exists(request.OutputPath))
-            throw new InvalidOperationException("GIF 文件未生成。");
+            throw new InvalidOperationException(Loc.Get("GifNotCreated"));
 
         request.Progress?.Report(1);
     }
@@ -253,8 +254,7 @@ public sealed class FfmpegGifService
     {
         var path = FfmpegLocator.Find();
         if (path is null)
-            throw new FileNotFoundException(
-                "未找到 ffmpeg.exe。请将 ffmpeg 放到项目 ffmpeg 目录，或安装并加入 PATH。");
+            throw new FileNotFoundException(Loc.Get("FfmpegExeMissing"));
         return path;
     }
 

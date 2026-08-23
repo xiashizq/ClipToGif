@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:ClipToGif.Controls"
-        Title="ClipToGif — 视频转 GIF"
+        Title="{DynamicResource AppTitle}"
         Icon="pack://application:,,,/Assets/app.ico"
         Height="820" Width="1280"
         MinHeight="640" MinWidth="1024"
@@ -23,13 +23,13 @@
         <Border Grid.Column="0" Style="{StaticResource PanelBorder}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10" LastChildFill="False">
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="视频列表" VerticalAlignment="Center" Margin="0"/>
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource VideoListTitle}" VerticalAlignment="Center" Margin="0"/>
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                        <Button x:Name="ImportButton" Style="{StaticResource GhostButton}" Content="导入" Click="AddVideos_OnClick" Padding="10,6" Margin="0,0,6,0"/>
-                        <Button x:Name="RemoveButton" Style="{StaticResource GhostButton}" Content="移除" Click="RemoveVideo_OnClick" Padding="10,6"/>
+                        <Button x:Name="ImportButton" Style="{StaticResource GhostButton}" Content="{DynamicResource Import}" Click="AddVideos_OnClick" Padding="10,6" Margin="0,0,6,0"/>
+                        <Button x:Name="RemoveButton" Style="{StaticResource GhostButton}" Content="{DynamicResource Remove}" Click="RemoveVideo_OnClick" Padding="10,6"/>
                     </StackPanel>
                 </DockPanel>
-                <TextBlock DockPanel.Dock="Top" Style="{StaticResource MutedText}" Text="仅链接路径，不会移动或复制视频文件" Margin="0,0,0,10"/>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource MutedText}" Text="{DynamicResource VideoListHint}" Margin="0,0,0,10" TextWrapping="Wrap"/>
                 <ListBox x:Name="VideoList"
                          ItemsSource="{Binding Videos}"
                          SelectionChanged="VideoList_OnSelectionChanged"
@@ -69,8 +69,37 @@
                 </Grid.RowDefinitions>
 
                 <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="预览与区间选取" Margin="0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="PlayerTimeText" Style="{StaticResource MutedText}" Text="00:00 / 00:00" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource PreviewTitle}" Margin="0" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border Background="{StaticResource PanelAltBrush}"
+                                BorderBrush="{StaticResource BorderBrushKey}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="8,4"
+                                VerticalAlignment="Center"
+                                ToolTip="{DynamicResource LanguageTooltip}">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0">
+                                    <Ellipse Stroke="{StaticResource AccentBrush}" StrokeThickness="1.6"/>
+                                    <Ellipse Width="6.5" HorizontalAlignment="Center" Stroke="{StaticResource AccentBrush}" StrokeThickness="1.2"/>
+                                    <Path Data="M 1.5,8 H 14.5" Stroke="{StaticResource AccentBrush}" StrokeThickness="1.2" Stretch="None"/>
+                                </Grid>
+                                <TextBlock Text="{DynamicResource LanguageLabel}"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0"/>
+                                <Border Background="White" CornerRadius="6" Padding="2" BorderBrush="{StaticResource BorderBrushKey}" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button x:Name="LangZhButton" Style="{StaticResource LanguageChip}" Content="中文" Click="LangZh_OnClick"/>
+                                        <Button x:Name="LangEnButton" Style="{StaticResource LanguageChip}" Content="EN" Click="LangEn_OnClick" Margin="2,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock x:Name="PlayerTimeText" Style="{StaticResource MutedText}" Text="00:00 / 00:00" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </StackPanel>
                 </DockPanel>
 
                 <Border Grid.Row="1" Background="{StaticResource PreviewBgBrush}" CornerRadius="8" ClipToBounds="False">
@@ -119,41 +148,41 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.ColumnSpan="5" Style="{StaticResource SectionTitle}" Text="GIF 导出参数" Margin="0,0,0,12"/>
+                        <TextBlock Grid.ColumnSpan="5" Style="{StaticResource SectionTitle}" Text="{DynamicResource ExportTitle}" Margin="0,0,0,12"/>
 
                         <StackPanel Grid.Row="1" Grid.Column="0">
-                            <TextBlock Style="{StaticResource MutedText}" Text="宽度 (px)"/>
+                            <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource WidthLabel}"/>
                             <TextBox x:Name="WidthBox" Text="480" Margin="0,4,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="2">
-                            <TextBlock Style="{StaticResource MutedText}" Text="高度 (px，0=按比例)"/>
+                            <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource HeightLabel}"/>
                             <TextBox x:Name="HeightBox" Text="0" Margin="0,4,0,0" IsEnabled="False"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="4">
-                            <TextBlock Style="{StaticResource MutedText}" Text="帧率 FPS"/>
+                            <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource FpsLabel}"/>
                             <TextBox x:Name="FpsBox" Text="10" Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,12,0,0">
                             <DockPanel>
-                                <TextBlock Style="{StaticResource MutedText}" Text="质量 (1 清晰 → 10 体积小)"/>
+                                <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource QualityLabel}" TextWrapping="Wrap"/>
                                 <TextBlock x:Name="QualityValueText" Style="{StaticResource MutedText}" Text="5" HorizontalAlignment="Right"/>
                             </DockPanel>
                             <Slider x:Name="QualitySlider" Minimum="1" Maximum="10" Value="5" TickFrequency="1" IsSnapToTickEnabled="True"
                                     ValueChanged="QualitySlider_OnValueChanged" Margin="0,4,0,0"/>
-                            <CheckBox x:Name="KeepAspectCheck" Content="保持宽高比（推荐）" IsChecked="True" Margin="0,8,0,0"
+                            <CheckBox x:Name="KeepAspectCheck" Content="{DynamicResource KeepAspect}" IsChecked="True" Margin="0,8,0,0"
                                       Checked="KeepAspectCheck_OnChanged" Unchecked="KeepAspectCheck_OnChanged"/>
                         </StackPanel>
 
                         <StackPanel Grid.Row="2" Grid.Column="4" VerticalAlignment="Bottom" Margin="0,12,0,0">
-                            <Button x:Name="GenerateButton" Style="{StaticResource PrimaryButton}" Content="生成 GIF" Click="GenerateGif_OnClick" Height="36"/>
+                            <Button x:Name="GenerateButton" Style="{StaticResource PrimaryButton}" Content="{DynamicResource GenerateGif}" Click="GenerateGif_OnClick" Height="36"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
                 <StackPanel Grid.Row="4" Margin="0,12,0,0">
                     <DockPanel>
-                        <TextBlock x:Name="StatusText" Style="{StaticResource MutedText}" Text="就绪"/>
+                        <TextBlock x:Name="StatusText" Style="{StaticResource MutedText}" Text="{DynamicResource Ready}"/>
                         <TextBlock x:Name="FfmpegStatusText" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
                     </DockPanel>
                     <ProgressBar x:Name="ProgressBar" Minimum="0" Maximum="1" Value="0" Margin="0,8,0,0"/>
@@ -165,10 +194,10 @@
         <Border Grid.Column="4" Style="{StaticResource PanelBorder}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="GIF 列表" Margin="0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="GifCountText" Style="{StaticResource MutedText}" HorizontalAlignment="Right" VerticalAlignment="Center" Text="0 条"/>
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource GifListTitle}" Margin="0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="GifCountText" Style="{StaticResource MutedText}" HorizontalAlignment="Right" VerticalAlignment="Center" Text="0"/>
                 </DockPanel>
-                <TextBlock DockPanel.Dock="Top" Style="{StaticResource MutedText}" Text="一个视频可生成多条 GIF" Margin="0,0,0,10"/>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource MutedText}" Text="{DynamicResource GifListHint}" Margin="0,0,0,10" TextWrapping="Wrap"/>
                 <Grid DockPanel.Dock="Bottom" Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -177,9 +206,9 @@
                         <ColumnDefinition Width="6"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="OpenGifButton" Grid.Column="0" Style="{StaticResource GhostButton}" Content="打开文件" Click="OpenGif_OnClick" HorizontalAlignment="Stretch"/>
-                    <Button x:Name="OpenGifFolderButton" Grid.Column="2" Style="{StaticResource GhostButton}" Content="打开目录" Click="OpenGifFolder_OnClick" HorizontalAlignment="Stretch"/>
-                    <Button x:Name="DeleteGifButton" Grid.Column="4" Style="{StaticResource GhostButton}" Content="删除" Click="DeleteGif_OnClick" HorizontalAlignment="Stretch"/>
+                    <Button x:Name="OpenGifButton" Grid.Column="0" Style="{StaticResource GhostButton}" Content="{DynamicResource OpenFile}" Click="OpenGif_OnClick" HorizontalAlignment="Stretch"/>
+                    <Button x:Name="OpenGifFolderButton" Grid.Column="2" Style="{StaticResource GhostButton}" Content="{DynamicResource OpenFolder}" Click="OpenGifFolder_OnClick" HorizontalAlignment="Stretch"/>
+                    <Button x:Name="DeleteGifButton" Grid.Column="4" Style="{StaticResource GhostButton}" Content="{DynamicResource Delete}" Click="DeleteGif_OnClick" HorizontalAlignment="Stretch"/>
                 </Grid>
                 <ListBox x:Name="GifList"
                          SelectionChanged="GifList_OnSelectionChanged"

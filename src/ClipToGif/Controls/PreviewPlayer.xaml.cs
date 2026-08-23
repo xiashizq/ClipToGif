@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using ClipToGif.Localization;
 using Unosquare.FFME.Common;
 
 namespace ClipToGif.Controls;
@@ -39,9 +40,19 @@ public partial class PreviewPlayer : UserControl
         ApplyVolume();
     }
 
+    public void ApplyLanguage()
+    {
+        if (EmptyHint.Visibility == Visibility.Visible &&
+            string.IsNullOrWhiteSpace(_currentPath))
+            EmptyHint.Text = Loc.Get("EmptyHint");
+        UpdatePlayPauseCaption();
+        ApplyVolume();
+    }
+
     public void ShowEmpty()
     {
         _ = CloseMediaAsync();
+        EmptyHint.Text = Loc.Get("EmptyHint");
         EmptyHint.Visibility = Visibility.Visible;
         MissingOverlay.Visibility = Visibility.Collapsed;
         SetChromeEnabled(false);
@@ -85,7 +96,7 @@ public partial class PreviewPlayer : UserControl
                 return;
 
             _hasMedia = false;
-            EmptyHint.Text = $"无法打开视频：{ex.Message}";
+            EmptyHint.Text = Loc.Format("CannotOpenVideo", ex.Message);
             EmptyHint.Visibility = Visibility.Visible;
             SetChromeEnabled(false);
         }
@@ -262,7 +273,7 @@ public partial class PreviewPlayer : UserControl
     private void UpdatePlayPauseCaption()
     {
         if (PlayPauseButton is null) return;
-        PlayPauseButton.Content = IsPlaying ? "暂停" : "播放";
+        PlayPauseButton.Content = Loc.Get(IsPlaying ? "Pause" : "Play");
     }
 
     private void VolumeSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -295,7 +306,7 @@ public partial class PreviewPlayer : UserControl
 
         var vol = VolumeSlider.Value;
         VolumeText.Text = $"{(int)Math.Round(vol * 100)}%";
-        MuteButton.Content = _isMuted || vol <= 0.001 ? "取消静音" : "静音";
+        MuteButton.Content = Loc.Get(_isMuted || vol <= 0.001 ? "Unmute" : "Mute");
         Media.IsMuted = _isMuted;
         Media.Volume = _isMuted ? 0 : vol;
     }

@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using ClipToGif.Localization;
 
 namespace ClipToGif.Models;
 
@@ -69,8 +70,11 @@ public sealed class VideoItem : INotifyPropertyChanged
     }
 
     public string StatusLine => IsMissing
-        ? "视频文件已不存在"
-        : $"{Duration:mm\\:ss} · {GifCount} 个 GIF";
+        ? Loc.Get("VideoMissing")
+        : Loc.Format("VideoStatusLine", Duration.ToString(@"mm\:ss"), GifCount);
+
+    public void NotifyLocalized() =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StatusLine)));
 
     public ObservableCollection<GifItem> Gifs { get; } = [];
 

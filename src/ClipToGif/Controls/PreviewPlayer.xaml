@@ -97,7 +97,7 @@
 
         <TextBlock x:Name="EmptyHint"
                    Grid.Row="0"
-                   Text="请选择或导入视频"
+                   Text="{DynamicResource EmptyHint}"
                    Foreground="#9AA3AF"
                    FontSize="16"
                    HorizontalAlignment="Center"
@@ -109,7 +109,8 @@
                 Background="#CC111318"
                 Visibility="Collapsed">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24">
-                <TextBlock Text="视频文件已不存在"
+                <TextBlock x:Name="MissingTitle"
+                           Text="{DynamicResource VideoMissing}"
                            Foreground="#FF8A80"
                            FontSize="20"
                            FontWeight="SemiBold"
@@ -127,14 +128,14 @@
         <Border Grid.Row="1" Background="#1A1E26" Padding="10,6">
             <Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                    <Button x:Name="PlayPauseButton" Style="{StaticResource VolumeButton}" Content="播放"
+                    <Button x:Name="PlayPauseButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource Play}"
                             Click="PlayPauseButton_OnClick" Padding="10,4" IsEnabled="False"/>
-                    <Button x:Name="SeekStartButton" Style="{StaticResource VolumeButton}" Content="跳到起点"
+                    <Button x:Name="SeekStartButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource SeekToStart}"
                             Click="SeekStartButton_OnClick" Padding="10,4" Margin="4,0,0,0" IsEnabled="False"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="音量" Foreground="#C9D0D8" FontSize="12" VerticalAlignment="Center"/>
-                    <Button x:Name="MuteButton" Style="{StaticResource VolumeButton}" Content="静音"
+                    <TextBlock x:Name="VolumeLabel" Text="{DynamicResource Volume}" Foreground="#C9D0D8" FontSize="12" VerticalAlignment="Center"/>
+                    <Button x:Name="MuteButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource Mute}"
                             Click="MuteButton_OnClick" Margin="8,0,0,0" IsEnabled="False"/>
                     <Slider x:Name="VolumeSlider"
                             Style="{StaticResource VolumeSliderStyle}"
