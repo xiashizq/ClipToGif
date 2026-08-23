@@ -1,8 +1,12 @@
 # ClipToGif
 
+[中文说明](README.zh-CN.md)
+
 A small Windows app that turns a video clip into one or more GIFs.
 
 Import a video, pick a time range on the timeline, set size / FPS / quality, then export. One video can produce many GIFs.
+
+![Main window](docs/images/main.png)
 
 ## Features
 
@@ -11,7 +15,10 @@ Import a video, pick a time range on the timeline, set size / FPS / quality, the
 - Drag a range on the timeline (max **30 seconds** per GIF)
 - Export width, height, FPS, quality (1 = sharper, 10 = smaller), optional keep-aspect-ratio
 - GIF list with thumbnails: open file, open folder, delete
+- Chinese / English UI
 - Missing source files stay in the list and are clearly marked
+
+![GIF created](docs/images/result.png)
 
 ## Download
 
@@ -28,7 +35,7 @@ Unzip and run `ClipToGif.exe`. No Visual Studio, .NET SDK, or extra FFmpeg insta
 1. Import or drop a video on the left.
 2. Play and drag the green range to choose the clip.
 3. Adjust GIF size, FPS, and quality.
-4. Click **生成 GIF**. Output appears in the list on the right.
+4. Click **Create GIF**. Output appears in the list on the right.
 
 Library data and exported GIFs live in `%LocalAppData%\ClipToGif\`.
 
