@@ -2,12 +2,6 @@ name: Release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - main
-    tags:
-      - "v*"
 
 permissions:
   contents: write
@@ -23,6 +17,17 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+
+      - name: Read version
+        shell: pwsh
+        run: |
+          [xml]$proj = Get-Content "src/ClipToGif/ClipToGif.csproj"
+          $version = @($proj.Project.PropertyGroup.Version | Where-Object { $_ })[0]
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "Version is not set in ClipToGif.csproj"
+          }
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Version $version"
 
       - name: Ensure FFmpeg 7 shared binaries
         shell: pwsh
@@ -62,6 +67,7 @@ jobs:
           -c Release
           -r win-x64
           --self-contained true
+          -p:Version=${{ env.APP_VERSION }}
           -p:DebugType=None
           -p:DebugSymbols=false
           -p:PublishReadyToRun=true
@@ -88,7 +94,7 @@ jobs:
       - name: Zip package
         shell: pwsh
         run: |
-          $name = if ($env:GITHUB_REF_TYPE -eq "tag") { "ClipToGif-$($env:GITHUB_REF_NAME)-win-x64.zip" } else { "ClipToGif-win-x64.zip" }
+          $name = "ClipToGif-$($env:APP_VERSION)-win-x64.zip"
           $zip = Join-Path $env:GITHUB_WORKSPACE $name
           if (Test-Path $zip) { Remove-Item $zip -Force }
           Compress-Archive -Path (Join-Path $env:GITHUB_WORKSPACE "publish\*") -DestinationPath $zip -CompressionLevel Optimal
@@ -98,12 +104,13 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ClipToGif-win-x64
+          name: ClipToGif-${{ env.APP_VERSION }}-win-x64
           path: ${{ github.workspace }}/${{ env.PACKAGE_NAME }}
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.APP_VERSION }}
+          name: ClipToGif ${{ env.APP_VERSION }}
           files: ${{ github.workspace }}/${{ env.PACKAGE_NAME }}
           generate_release_notes: true

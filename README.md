@@ -15,7 +15,9 @@ Import a video, pick a time range on the timeline, set size / FPS / quality, the
 
 ## Download
 
-Grab the latest `ClipToGif-win-x64.zip` from [Releases](../../releases).
+Grab the latest `ClipToGif-1.0.0-win-x64.zip` from [Releases](../../releases).
+
+Releases are published manually from the **Release** workflow. Bump `<Version>` in `src/ClipToGif/ClipToGif.csproj` before running it.
 
 Unzip and run `ClipToGif.exe`. No Visual Studio, .NET SDK, or extra FFmpeg install is required — the runtime and FFmpeg are already in the folder.
 
