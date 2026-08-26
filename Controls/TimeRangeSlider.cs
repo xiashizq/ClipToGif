@@ -56,7 +56,7 @@ public class TimeRangeSlider : Control
 
     public static readonly DependencyProperty MaximumRangeProperty =
         DependencyProperty.Register(nameof(MaximumRange), typeof(double), typeof(TimeRangeSlider),
-            new FrameworkPropertyMetadata(30d, OnRangeBoundsChanged));
+            new FrameworkPropertyMetadata(0d, OnRangeBoundsChanged));
 
     public static readonly RoutedEvent PositionSeekedEvent =
         EventManager.RegisterRoutedEvent(

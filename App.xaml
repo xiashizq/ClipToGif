@@ -103,6 +103,11 @@
                 </Setter>
             </Style>
 
+            <Style x:Key="DangerGhostButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+
             <Style TargetType="ListBox">
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="BorderThickness" Value="0"/>
@@ -145,6 +150,15 @@
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Padding" Value="8,6"/>
                 <Setter Property="CaretBrush" Value="{StaticResource TextBrush}"/>
+            </Style>
+
+            <Style TargetType="ComboBox">
+                <Setter Property="Background" Value="{StaticResource InputBgBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrushKey}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="6,5"/>
+                <Setter Property="MinHeight" Value="32"/>
             </Style>
 
             <Style TargetType="CheckBox">

@@ -28,6 +28,9 @@ public partial class MainWindow : Window
     private VideoItem? _currentVideo;
     private CancellationTokenSource? _convertCts;
     private bool _suppressRangeEvents;
+    private bool _isGenerating;
+    private bool _applyingScale;
+    private bool _suppressScaleEvents;
 
     public ObservableCollection<VideoItem> Videos => _videos;
 
@@ -46,10 +49,12 @@ public partial class MainWindow : Window
 
         Loaded += async (_, _) => await OnLoadedAsync();
         Activated += (_, _) => RefreshCurrentVideoExists();
-        Closing += (_, _) => Persist();
+        Closing += OnWindowClosing;
         Loc.LanguageChanged += OnLanguageChanged;
         Closed += (_, _) => Loc.LanguageChanged -= OnLanguageChanged;
         UpdateLanguageSwitch();
+        PopulateCompressionBox();
+        PopulateScaleBox();
     }
 
     private async Task OnLoadedAsync()
@@ -292,9 +297,11 @@ public partial class MainWindow : Window
         ImportButton.IsEnabled = !videoMissing;
         RemoveButton.IsEnabled = _currentVideo is not null || VideoList.SelectedItem is not null;
         Player.SetChromeEnabled(enabled && !videoMissing);
-        RangeSlider.IsEnabled = enabled;
-        ExportPanel.IsEnabled = enabled;
-        GenerateButton.IsEnabled = enabled;
+        RangeSlider.IsEnabled = enabled && !_isGenerating;
+        ExportPanel.IsEnabled = enabled || _isGenerating;
+        GenerateButton.IsEnabled = enabled && !_isGenerating;
+        if (CancelGenerateButton is not null)
+            CancelGenerateButton.IsEnabled = _isGenerating;
         OpenGifButton.IsEnabled = enabled;
         OpenGifFolderButton.IsEnabled = enabled;
         DeleteGifButton.IsEnabled = enabled;
@@ -336,10 +343,16 @@ public partial class MainWindow : Window
 
     private void ApplyGifDefaultsFromVideo(VideoItem video)
     {
-        if (video.Width > 0)
-            WidthBox.Text = video.Width.ToString(CultureInfo.InvariantCulture);
-        if (video.Height > 0)
-            HeightBox.Text = video.Height.ToString(CultureInfo.InvariantCulture);
+        if (!ApplySelectedScale())
+        {
+            if (video.Width > 0)
+                WidthBox.Text = video.Width.ToString(CultureInfo.InvariantCulture);
+            if (KeepAspectCheck.IsChecked == true)
+                UpdateHeightFromAspect();
+            else if (video.Height > 0)
+                HeightBox.Text = video.Height.ToString(CultureInfo.InvariantCulture);
+        }
+
         if (video.Fps > 0)
         {
             var fpsText = video.Fps % 1 == 0
@@ -383,17 +396,16 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 将轨道映射到整段视频；默认选区不超过 30 秒。
+    /// 将轨道映射到整段视频；默认选中全长。
     /// </summary>
     private void ApplyFullDuration(TimeSpan duration)
     {
         var totalSeconds = duration.TotalSeconds;
-        var defaultEnd = Math.Min(30, totalSeconds);
         _suppressRangeEvents = true;
         RangeSlider.Minimum = 0;
         RangeSlider.Maximum = totalSeconds;
         RangeSlider.Start = 0;
-        RangeSlider.End = defaultEnd;
+        RangeSlider.End = totalSeconds;
         RangeSlider.Position = 0;
         _suppressRangeEvents = false;
 
@@ -441,9 +453,7 @@ public partial class MainWindow : Window
         EndLabel.Text = Loc.Format("RangeEnd", FormatTime(RangeSlider.End));
         var span = RangeSlider.End - RangeSlider.Start;
         var spanText = span >= 60 ? FormatTime(span) : $"{span:0.0}s";
-        SelectionLabel.Text = span >= 30 - 0.05
-            ? Loc.Format("SelectionMax", spanText)
-            : Loc.Format("Selection", spanText);
+        SelectionLabel.Text = Loc.Format("Selection", spanText);
     }
 
     private void UpdatePositionLabels(double seconds) =>
@@ -466,9 +476,139 @@ public partial class MainWindow : Window
     private void KeepAspectCheck_OnChanged(object sender, RoutedEventArgs e)
     {
         if (HeightBox is null || KeepAspectCheck is null) return;
-        HeightBox.IsEnabled = KeepAspectCheck.IsChecked != true;
-        if (_currentVideo?.Height > 0)
-            HeightBox.Text = _currentVideo.Height.ToString(CultureInfo.InvariantCulture);
+        var keep = KeepAspectCheck.IsChecked == true;
+        HeightBox.IsReadOnly = keep;
+        HeightBox.IsTabStop = !keep;
+        if (keep)
+            UpdateHeightFromAspect();
+    }
+
+    private void WidthBox_OnTextChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateHeightFromAspect();
+        if (!_applyingScale)
+            SyncScaleFromWidth();
+    }
+
+    private void PopulateScaleBox()
+    {
+        if (ScaleBox is null) return;
+        var selected = ScaleBox.SelectedValue as string ?? "100";
+        _suppressScaleEvents = true;
+        ScaleBox.ItemsSource = ScaleChoice.CreateAll();
+        ScaleBox.SelectedValue = selected;
+        if (ScaleBox.SelectedItem is null)
+            ScaleBox.SelectedValue = "100";
+        _suppressScaleEvents = false;
+    }
+
+    private void ScaleBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressScaleEvents) return;
+        ApplySelectedScale();
+    }
+
+    private bool ApplySelectedScale()
+    {
+        if (ScaleBox?.SelectedItem is not ScaleChoice choice || choice.Factor <= 0)
+            return false;
+        return ApplyScale(choice.Factor);
+    }
+
+    private bool ApplyScale(double factor)
+    {
+        var srcW = _currentVideo?.Width ?? 0;
+        var srcH = _currentVideo?.Height ?? 0;
+        if (srcW <= 0 || WidthBox is null || HeightBox is null)
+            return false;
+
+        var width = Math.Clamp((int)Math.Round(srcW * factor), 16, 4096);
+        _applyingScale = true;
+        try
+        {
+            WidthBox.Text = width.ToString(CultureInfo.InvariantCulture);
+            if (KeepAspectCheck.IsChecked == true)
+                UpdateHeightFromAspect();
+            else if (srcH > 0)
+                HeightBox.Text = Math.Clamp((int)Math.Round(srcH * factor), 1, 4096)
+                    .ToString(CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            _applyingScale = false;
+        }
+
+        return true;
+    }
+
+    private void SyncScaleFromWidth()
+    {
+        if (ScaleBox is null) return;
+        var srcW = _currentVideo?.Width ?? 0;
+        if (srcW <= 0) return;
+        if (!int.TryParse(WidthBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width) || width < 1)
+            return;
+
+        var ratio = width / (double)srcW;
+        var match = ScaleChoice.CreateAll()
+            .FirstOrDefault(c => c.Factor > 0 && Math.Abs(c.Factor - ratio) < 0.02);
+
+        _suppressScaleEvents = true;
+        ScaleBox.SelectedValue = match?.Id ?? "custom";
+        _suppressScaleEvents = false;
+    }
+
+    private void UpdateHeightFromAspect()
+    {
+        if (KeepAspectCheck?.IsChecked != true || HeightBox is null || WidthBox is null)
+            return;
+
+        var srcW = _currentVideo?.Width ?? 0;
+        var srcH = _currentVideo?.Height ?? 0;
+        if (srcW <= 0 || srcH <= 0)
+            return;
+
+        if (!int.TryParse(WidthBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width) || width < 1)
+            return;
+
+        var height = Math.Max(1, (int)Math.Round(width * (double)srcH / srcW));
+        var text = height.ToString(CultureInfo.InvariantCulture);
+        if (HeightBox.Text != text)
+            HeightBox.Text = text;
+    }
+
+    private void PopulateCompressionBox()
+    {
+        if (CompressionBox is null) return;
+        var selected = CompressionBox.SelectedValue is GifCompressionMode mode
+            ? mode
+            : GifCompressionMode.None;
+        CompressionBox.ItemsSource = CompressionChoice.CreateAll();
+        CompressionBox.SelectedValue = selected;
+        UpdateCompressionTooltip();
+        UpdateQualityEnabled();
+    }
+
+    private void CompressionBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateCompressionTooltip();
+        UpdateQualityEnabled();
+    }
+
+    private void UpdateCompressionTooltip()
+    {
+        if (CompressionBox?.SelectedItem is CompressionChoice choice)
+            CompressionBox.ToolTip = choice.Description;
+    }
+
+    private void UpdateQualityEnabled()
+    {
+        if (QualitySlider is null) return;
+        var lossless = CompressionBox.SelectedValue is GifCompressionMode mode &&
+                       mode is GifCompressionMode.LosslessTransdiff
+                           or GifCompressionMode.LosslessRectangle
+                           or GifCompressionMode.LosslessPaletteDiff;
+        QualitySlider.IsEnabled = !lossless;
     }
 
     private async void GenerateGif_OnClick(object sender, RoutedEventArgs e)
@@ -510,23 +650,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (end - start > TimeSpan.FromSeconds(30))
-        {
-            MessageBox.Show(this, Loc.Get("RangeTooLong"), "ClipToGif",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
-        var safeName = SanitizeFileName(Path.GetFileNameWithoutExtension(_currentVideo.DisplayName));
-        var fileName = $"{safeName}_{stamp}.gif";
+        var fileName = CreateGifFileName();
         var outputDir = Path.Combine(_store.OutputDirectory, _currentVideo.Id.ToString("N"));
         Directory.CreateDirectory(outputDir);
         var outputPath = Path.Combine(outputDir, fileName);
 
+        var owner = _currentVideo;
         var pending = new GifItem
         {
-            VideoId = _currentVideo.Id,
+            VideoId = owner.Id,
             FilePath = outputPath,
             DisplayName = fileName,
             Start = start,
@@ -537,18 +669,20 @@ public partial class MainWindow : Window
             Quality = settings.Quality,
             StatusKey = "StatusGenerating"
         };
-        _currentVideo.Gifs.Insert(0, pending);
-        UpdateGifCount(_currentVideo.Gifs.Count);
+        owner.Gifs.Insert(0, pending);
+        UpdateGifCount(owner.Gifs.Count);
         GifList.SelectedItem = pending;
 
         _convertCts?.Cancel();
         _convertCts = new CancellationTokenSource();
-        GenerateButton.IsEnabled = false;
+        var cts = _convertCts;
+        SetGeneratingUi(generating: true);
         ProgressBar.Value = 0;
         StatusText.Text = Loc.Get("GeneratingGif");
 
         var progress = new Progress<double>(p =>
         {
+            if (cts.IsCancellationRequested) return;
             ProgressBar.Value = p;
             StatusText.Text = Loc.Format("GeneratingGifProgress", p);
         });
@@ -557,7 +691,7 @@ public partial class MainWindow : Window
         {
             await _ffmpeg.ConvertAsync(new GifConversionRequest
             {
-                VideoPath = _currentVideo.FilePath,
+                VideoPath = owner.FilePath,
                 OutputPath = outputPath,
                 Start = start,
                 End = end,
@@ -576,8 +710,9 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            pending.StatusKey = "StatusCanceled";
+            DiscardPendingGif(owner, pending, outputPath);
             StatusText.Text = Loc.Get("GenerateCanceled");
+            ProgressBar.Value = 0;
         }
         catch (Exception ex)
         {
@@ -587,8 +722,54 @@ public partial class MainWindow : Window
         }
         finally
         {
-            GenerateButton.IsEnabled = true;
+            SetGeneratingUi(generating: false);
         }
+    }
+
+    private void CancelGenerate_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_isGenerating)
+            return;
+
+        CancelGenerateButton.IsEnabled = false;
+        StatusText.Text = Loc.Get("CancellingGenerate");
+        _convertCts?.Cancel();
+    }
+
+    private void SetGeneratingUi(bool generating)
+    {
+        _isGenerating = generating;
+        GenerateButton.Visibility = generating ? Visibility.Collapsed : Visibility.Visible;
+        CancelGenerateButton.Visibility = generating ? Visibility.Visible : Visibility.Collapsed;
+        CancelGenerateButton.IsEnabled = generating;
+
+        if (_currentVideo is not null)
+            SetWorkspaceEnabled(!_currentVideo.IsMissing, _currentVideo.IsMissing);
+        else
+            SetWorkspaceEnabled(enabled: false, videoMissing: false);
+    }
+
+    private void DiscardPendingGif(VideoItem owner, GifItem pending, string outputPath)
+    {
+        pending.ReleaseThumbnail();
+        try
+        {
+            DeleteFileWithRetry(outputPath);
+        }
+        catch
+        {
+            // 取消后尽量清理不完整文件，失败则忽略
+        }
+
+        owner.Gifs.Remove(pending);
+        if (ReferenceEquals(_currentVideo, owner))
+            UpdateGifCount(owner.Gifs.Count);
+    }
+
+    private void OnWindowClosing(object? sender, CancelEventArgs e)
+    {
+        _convertCts?.Cancel();
+        Persist();
     }
 
     private bool TryReadSettings(out GifExportSettings settings, out string error)
@@ -615,10 +796,13 @@ public partial class MainWindow : Window
         }
 
         settings.Width = width;
-        settings.Height = KeepAspectCheck.IsChecked == true ? 0 : height;
+        settings.Height = KeepAspectCheck.IsChecked == true && height <= 0 ? 0 : height;
         settings.Fps = fps;
         settings.Quality = (int)QualitySlider.Value;
         settings.KeepAspectRatio = KeepAspectCheck.IsChecked == true || height <= 0;
+        settings.Compression = CompressionBox.SelectedValue is GifCompressionMode mode
+            ? mode
+            : GifCompressionMode.None;
         return true;
     }
 
@@ -657,6 +841,12 @@ public partial class MainWindow : Window
     {
         if (_currentVideo is null || GifList.SelectedItem is not GifItem gif)
             return;
+
+        if (_isGenerating && gif.StatusKey == "StatusGenerating")
+        {
+            CancelGenerate_OnClick(sender, e);
+            return;
+        }
 
         var confirm = MessageBox.Show(this, Loc.Format("ConfirmDeleteGif", gif.DisplayName), Loc.Get("ConfirmDeleteTitle"),
             MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -735,6 +925,8 @@ public partial class MainWindow : Window
         Dispatcher.Invoke(() =>
         {
             UpdateLanguageSwitch();
+            PopulateCompressionBox();
+            PopulateScaleBox();
 
             RefreshFfmpegStatus();
             UpdateGifCount(_currentVideo?.Gifs.Count ?? 0);
@@ -752,7 +944,9 @@ public partial class MainWindow : Window
 
             Player.ApplyLanguage();
 
-            if (_currentVideo is null)
+            if (_isGenerating)
+                StatusText.Text = Loc.Get("GeneratingGif");
+            else if (_currentVideo is null)
                 StatusText.Text = Loc.Get("Ready");
             else if (_currentVideo.IsMissing)
                 StatusText.Text = Loc.Get("VideoMissing");
@@ -764,10 +958,10 @@ public partial class MainWindow : Window
     private void UpdateGifCount(int count) =>
         GifCountText.Text = Loc.Format("GifCount", count);
 
-    private static string SanitizeFileName(string name)
+    private static string CreateGifFileName()
     {
-        foreach (var c in Path.GetInvalidFileNameChars())
-            name = name.Replace(c, '_');
-        return string.IsNullOrWhiteSpace(name) ? "clip" : name;
+        var stamp = DateTime.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+        var suffix = Random.Shared.Next(0x10000).ToString("x4", CultureInfo.InvariantCulture);
+        return $"gif{stamp}{suffix}.gif";
     }
 }

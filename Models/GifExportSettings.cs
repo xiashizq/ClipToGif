@@ -10,6 +10,7 @@ public sealed class GifExportSettings : INotifyPropertyChanged
     private double _fps = 10;
     private int _quality = 5; // 1(高) ~ 10(小)
     private bool _keepAspectRatio = true;
+    private GifCompressionMode _compression = GifCompressionMode.None;
 
     public int Width
     {
@@ -40,6 +41,13 @@ public sealed class GifExportSettings : INotifyPropertyChanged
     {
         get => _keepAspectRatio;
         set => SetField(ref _keepAspectRatio, value);
+    }
+
+    /// <summary>GIF 压缩算法；默认不压缩。</summary>
+    public GifCompressionMode Compression
+    {
+        get => _compression;
+        set => SetField(ref _compression, value);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

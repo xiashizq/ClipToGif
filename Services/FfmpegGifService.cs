@@ -176,17 +176,15 @@ public sealed class FfmpegGifService
         var duration = request.End - request.Start;
         Directory.CreateDirectory(Path.GetDirectoryName(request.OutputPath)!);
 
-        var maxColors = settings.Quality switch
-        {
-            <= 2 => 256,
-            <= 4 => 192,
-            <= 6 => 128,
-            <= 8 => 96,
-            _ => 64
-        };
+        ResolveCompression(settings,
+            out var maxColors,
+            out var dither,
+            out var statsMode,
+            out var paletteUseExtra,
+            out var extraFilters,
+            out var outputFlags);
 
-        var dither = settings.Quality <= 4 ? "sierra2_4a" : "bayer:bayer_scale=3";
-        var scale = settings.KeepAspectRatio || settings.Height <= 0
+        var scale = settings.Height <= 0
             ? $"scale={settings.Width}:-1:flags=lanczos"
             : $"scale={settings.Width}:{settings.Height}:flags=lanczos";
 
@@ -195,13 +193,13 @@ public sealed class FfmpegGifService
         var dur = FormatSeconds(duration);
 
         var filter =
-            $"fps={fps},{scale},split[s0][s1];" +
-            $"[s0]palettegen=max_colors={maxColors}:stats_mode=diff[p];" +
-            $"[s1][p]paletteuse=dither={dither}";
+            $"fps={fps},{extraFilters}{scale},split[s0][s1];" +
+            $"[s0]palettegen=max_colors={maxColors}:stats_mode={statsMode}[p];" +
+            $"[s1][p]paletteuse=dither={dither}{paletteUseExtra}";
 
         var args =
             $"-y -ss {start} -t {dur} -i \"{request.VideoPath}\" " +
-            $"-vf \"{filter}\" -loop 0 \"{request.OutputPath}\"";
+            $"-vf \"{filter}\" {outputFlags}-loop 0 \"{request.OutputPath}\"";
 
         var psi = CreateProcess(ffmpeg, args);
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException(Loc.Get("CannotStartFfmpeg"));
@@ -232,8 +230,27 @@ public sealed class FfmpegGifService
                          }
                      }))
         {
-            await proc.WaitForExitAsync(request.CancellationToken);
+            try
+            {
+                await proc.WaitForExitAsync(request.CancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!proc.HasExited) proc.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                throw;
+            }
         }
+
+        if (request.CancellationToken.IsCancellationRequested)
+            throw new OperationCanceledException(request.CancellationToken);
 
         if (proc.ExitCode != 0)
         {
@@ -248,6 +265,90 @@ public sealed class FfmpegGifService
             throw new InvalidOperationException(Loc.Get("GifNotCreated"));
 
         request.Progress?.Report(1);
+    }
+
+    private static int QualityToColors(int quality) => quality switch
+    {
+        <= 2 => 256,
+        <= 4 => 192,
+        <= 6 => 128,
+        <= 8 => 96,
+        _ => 64
+    };
+
+    private static void ResolveCompression(
+        GifExportSettings settings,
+        out int maxColors,
+        out string dither,
+        out string statsMode,
+        out string paletteUseExtra,
+        out string extraFilters,
+        out string outputFlags)
+    {
+        maxColors = QualityToColors(settings.Quality);
+        dither = settings.Quality <= 4 ? "sierra2_4a" : "bayer:bayer_scale=3";
+        statsMode = "full";
+        paletteUseExtra = "";
+        extraFilters = "";
+        outputFlags = "";
+
+        switch (settings.Compression)
+        {
+            case GifCompressionMode.None:
+                break;
+
+            case GifCompressionMode.LosslessTransdiff:
+                maxColors = 256;
+                dither = "sierra2_4a";
+                statsMode = "full";
+                outputFlags = "-gifflags +transdiff ";
+                break;
+
+            case GifCompressionMode.LosslessRectangle:
+                maxColors = 256;
+                dither = "none";
+                statsMode = "full";
+                paletteUseExtra = ":diff_mode=rectangle";
+                outputFlags = "-gifflags +transdiff ";
+                break;
+
+            case GifCompressionMode.LosslessPaletteDiff:
+                maxColors = 256;
+                dither = "none";
+                statsMode = "diff";
+                paletteUseExtra = ":diff_mode=rectangle";
+                outputFlags = "-gifflags +transdiff ";
+                break;
+
+            case GifCompressionMode.LossyBayer:
+                dither = "bayer:bayer_scale=5";
+                statsMode = "diff";
+                paletteUseExtra = ":diff_mode=rectangle";
+                outputFlags = "-gifflags +transdiff ";
+                break;
+
+            case GifCompressionMode.LossyFloydSteinberg:
+                dither = "floyd_steinberg";
+                statsMode = "diff";
+                outputFlags = "-gifflags +transdiff ";
+                break;
+
+            case GifCompressionMode.LossyStrong:
+                dither = "bayer:bayer_scale=5";
+                maxColors = settings.Quality switch
+                {
+                    <= 2 => 64,
+                    <= 4 => 48,
+                    <= 6 => 32,
+                    <= 8 => 24,
+                    _ => 16
+                };
+                statsMode = "diff";
+                extraFilters = "mpdecimate,";
+                paletteUseExtra = ":diff_mode=rectangle";
+                outputFlags = "-gifflags +transdiff ";
+                break;
+        }
     }
 
     private static string RequireFfmpeg()

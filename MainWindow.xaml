@@ -4,8 +4,8 @@
         xmlns:controls="clr-namespace:ClipToGif.Controls"
         Title="{DynamicResource AppTitle}"
         Icon="pack://application:,,,/Assets/app.ico"
-        Height="820" Width="1280"
-        MinHeight="640" MinWidth="1024"
+        Height="860" Width="1280"
+        MinHeight="720" MinWidth="1024"
         WindowStartupLocation="CenterScreen"
         AllowDrop="True"
         Drop="Window_OnDrop"
@@ -62,7 +62,7 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*" MinHeight="280"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -110,7 +110,7 @@
                                             SeekToStartRequested="Player_OnSeekToStartRequested"/>
                 </Border>
 
-                <StackPanel Grid.Row="2" Margin="0,14,0,0">
+                <StackPanel Grid.Row="2" Margin="0,10,0,0">
                     <DockPanel Margin="0,0,0,6">
                         <TextBlock x:Name="StartLabel" Style="{StaticResource MutedText}" Text="起点 00:00"/>
                         <TextBlock x:Name="EndLabel" Style="{StaticResource MutedText}" Text="终点 00:00" HorizontalAlignment="Right"/>
@@ -122,7 +122,7 @@
                                               Start="0"
                                               End="1"
                                               MinimumRange="0.2"
-                                              MaximumRange="30"/>
+                                              MaximumRange="0"/>
                     <DockPanel Margin="0,8,0,0">
                         <TextBlock x:Name="DurationStartLabel" Style="{StaticResource MutedText}" Text="00:00"/>
                         <TextBlock x:Name="DurationEndLabel" Style="{StaticResource MutedText}" Text="时长 --:--" HorizontalAlignment="Right"/>
@@ -133,7 +133,7 @@
                     </DockPanel>
                 </StackPanel>
 
-                <Border x:Name="ExportPanel" Grid.Row="3" Background="{StaticResource PanelAltBrush}" CornerRadius="8" Padding="12" Margin="0,14,0,0" BorderBrush="{StaticResource BorderBrushKey}" BorderThickness="1">
+                <Border x:Name="ExportPanel" Grid.Row="3" Background="{StaticResource PanelAltBrush}" CornerRadius="8" Padding="10" Margin="0,10,0,0" BorderBrush="{StaticResource BorderBrushKey}" BorderThickness="1">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -146,24 +146,52 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.ColumnSpan="5" Style="{StaticResource SectionTitle}" Text="{DynamicResource ExportTitle}" Margin="0,0,0,12"/>
+                        <TextBlock Grid.ColumnSpan="5" Style="{StaticResource SectionTitle}" Text="{DynamicResource ExportTitle}" Margin="0,0,0,8"/>
 
                         <StackPanel Grid.Row="1" Grid.Column="0">
                             <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource WidthLabel}"/>
-                            <TextBox x:Name="WidthBox" Text="480" Margin="0,4,0,0"/>
+                            <TextBox x:Name="WidthBox" Text="480" Margin="0,4,0,0" TextChanged="WidthBox_OnTextChanged"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="2">
                             <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource HeightLabel}"/>
-                            <TextBox x:Name="HeightBox" Text="0" Margin="0,4,0,0" IsEnabled="False"/>
+                            <TextBox x:Name="HeightBox" Text="0" Margin="0,4,0,0" IsReadOnly="True"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="4">
                             <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource FpsLabel}"/>
                             <TextBox x:Name="FpsBox" Text="10" Margin="0,4,0,0"/>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,12,0,0">
+                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,8,0,0">
+                            <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource CompressionLabel}"/>
+                            <ComboBox x:Name="CompressionBox"
+                                      Margin="0,4,0,0"
+                                      SelectedValuePath="Mode"
+                                      SelectionChanged="CompressionBox_OnSelectionChanged">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" ToolTip="{Binding Description}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" Grid.Column="4" Margin="0,8,0,0">
+                            <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource ScaleLabel}"/>
+                            <ComboBox x:Name="ScaleBox"
+                                      Margin="0,4,0,0"
+                                      SelectedValuePath="Id"
+                                      SelectionChanged="ScaleBox_OnSelectionChanged">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,8,0,0">
                             <DockPanel>
                                 <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource QualityLabel}" TextWrapping="Wrap"/>
                                 <TextBlock x:Name="QualityValueText" Style="{StaticResource MutedText}" Text="5" HorizontalAlignment="Right"/>
@@ -174,13 +202,16 @@
                                       Checked="KeepAspectCheck_OnChanged" Unchecked="KeepAspectCheck_OnChanged"/>
                         </StackPanel>
 
-                        <StackPanel Grid.Row="2" Grid.Column="4" VerticalAlignment="Bottom" Margin="0,12,0,0">
-                            <Button x:Name="GenerateButton" Style="{StaticResource PrimaryButton}" Content="{DynamicResource GenerateGif}" Click="GenerateGif_OnClick" Height="36"/>
+                        <StackPanel Grid.Row="3" Grid.Column="4" VerticalAlignment="Bottom" Margin="0,8,0,0">
+                            <Grid Height="36">
+                                <Button x:Name="GenerateButton" Style="{StaticResource PrimaryButton}" Content="{DynamicResource GenerateGif}" Click="GenerateGif_OnClick"/>
+                                <Button x:Name="CancelGenerateButton" Style="{StaticResource DangerGhostButton}" Content="{DynamicResource CancelGenerate}" Click="CancelGenerate_OnClick" Visibility="Collapsed"/>
+                            </Grid>
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <StackPanel Grid.Row="4" Margin="0,12,0,0">
+                <StackPanel Grid.Row="4" Margin="0,8,0,0">
                     <DockPanel>
                         <TextBlock x:Name="StatusText" Style="{StaticResource MutedText}" Text="{DynamicResource Ready}"/>
                         <TextBlock x:Name="FfmpegStatusText" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
