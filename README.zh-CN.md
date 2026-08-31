@@ -23,7 +23,7 @@ Windows 小工具：从视频里选出一段，导出成一条或多条 GIF。
 
 ## 下载
 
-到 [Releases](../../releases) 下载最新的 `ClipToGif-1.1.0-win-x64.zip`。
+到 [Releases](../../releases) 下载最新的 `ClipToGif-1.2.0-win-x64.zip`。
 
 发版在 GitHub Actions 的 **Release** 工作流里手动触发。发版前改 `ClipToGif.csproj` 里的 `<Version>`。
 

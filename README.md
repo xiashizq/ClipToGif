@@ -23,7 +23,7 @@ Import a video, pick a time range on the timeline, set size / FPS / quality / co
 
 ## Download
 
-Grab the latest `ClipToGif-1.1.0-win-x64.zip` from [Releases](../../releases).
+Grab the latest `ClipToGif-1.2.0-win-x64.zip` from [Releases](../../releases).
 
 Releases are published manually from the **Release** workflow. Bump `<Version>` in `ClipToGif.csproj` before running it.
 
