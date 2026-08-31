@@ -31,6 +31,8 @@ public partial class MainWindow : Window
     private bool _isGenerating;
     private bool _applyingScale;
     private bool _suppressScaleEvents;
+    private int? _customScalePercent;
+    private string _scaleId = "100";
 
     public ObservableCollection<VideoItem> Videos => _videos;
 
@@ -55,6 +57,7 @@ public partial class MainWindow : Window
         UpdateLanguageSwitch();
         PopulateCompressionBox();
         PopulateScaleBox();
+        PopulateSizeLimitBox();
     }
 
     private async Task OnLoadedAsync()
@@ -86,6 +89,7 @@ public partial class MainWindow : Window
     {
         var data = _store.Load();
         _videos.Clear();
+        var skippedMissingGif = false;
         foreach (var record in data.Videos)
         {
             // 只保存路径链接；即使文件已不存在也保留条目，便于提示
@@ -105,7 +109,12 @@ public partial class MainWindow : Window
 
             foreach (var g in record.Gifs)
             {
-                var gifExists = File.Exists(g.FilePath);
+                if (!File.Exists(g.FilePath))
+                {
+                    skippedMissingGif = true;
+                    continue;
+                }
+
                 video.Gifs.Add(new GifItem
                 {
                     Id = g.Id,
@@ -121,16 +130,46 @@ public partial class MainWindow : Window
                     CreatedAt = g.CreatedAt,
                     FileSizeBytes = g.FileSizeBytes > 0
                         ? g.FileSizeBytes
-                        : gifExists ? new FileInfo(g.FilePath).Length : 0,
-                    StatusKey = gifExists ? "StatusDone" : "StatusMissing"
+                        : new FileInfo(g.FilePath).Length,
+                    StatusKey = "StatusDone"
                 });
             }
 
             _videos.Add(video);
         }
+
+        if (skippedMissingGif)
+            Persist();
     }
 
     private void Persist() => _store.Save(_videos);
+
+    private void PruneMissingGifs()
+    {
+        var removed = false;
+        foreach (var video in _videos)
+        {
+            for (var i = video.Gifs.Count - 1; i >= 0; i--)
+            {
+                var gif = video.Gifs[i];
+                if (gif.StatusKey == "StatusGenerating")
+                    continue;
+                if (File.Exists(gif.FilePath))
+                    continue;
+
+                gif.ReleaseThumbnail();
+                video.Gifs.RemoveAt(i);
+                removed = true;
+            }
+        }
+
+        if (!removed)
+            return;
+
+        if (_currentVideo is not null)
+            UpdateGifCount(_currentVideo.Gifs.Count);
+        Persist();
+    }
 
     private void AddVideos_OnClick(object sender, RoutedEventArgs e)
     {
@@ -247,6 +286,7 @@ public partial class MainWindow : Window
 
     private void RefreshCurrentVideoExists()
     {
+        PruneMissingGifs();
         if (_currentVideo is null)
             return;
 
@@ -261,6 +301,7 @@ public partial class MainWindow : Window
         StopPlayback();
         _currentVideo = video;
         video.RefreshExists();
+        PruneMissingGifs();
 
         GifList.ItemsSource = video.Gifs;
         UpdateGifCount(video.Gifs.Count);
@@ -278,6 +319,8 @@ public partial class MainWindow : Window
         StatusText.Text = Loc.Format("LinkedVideo", video.DisplayName);
         SetWorkspaceEnabled(enabled: true, videoMissing: false);
         Player.Open(video.FilePath);
+        Player.SetVideoSize(video.Width, video.Height);
+        Player.ResetCrop();
 
         if (video.Duration.TotalSeconds > 0)
             ApplyFullDuration(video.Duration);
@@ -330,6 +373,9 @@ public partial class MainWindow : Window
             if (info.Height > 0) video.Height = info.Height;
             if (info.Fps > 0) video.Fps = info.Fps;
 
+            if (video.Width > 0 && video.Height > 0)
+                Player.SetVideoSize(video.Width, video.Height);
+
             if (video.Duration.TotalSeconds > 0)
                 ApplyFullDuration(video.Duration);
             ApplyGifDefaultsFromVideo(video);
@@ -345,21 +391,44 @@ public partial class MainWindow : Window
     {
         if (!ApplySelectedScale())
         {
-            if (video.Width > 0)
-                WidthBox.Text = video.Width.ToString(CultureInfo.InvariantCulture);
+            GetSourceSize(out var srcW, out var srcH);
+            if (srcW > 0)
+                WidthBox.Text = srcW.ToString(CultureInfo.InvariantCulture);
             if (KeepAspectCheck.IsChecked == true)
                 UpdateHeightFromAspect();
-            else if (video.Height > 0)
-                HeightBox.Text = video.Height.ToString(CultureInfo.InvariantCulture);
+            else if (srcH > 0)
+                HeightBox.Text = srcH.ToString(CultureInfo.InvariantCulture);
         }
 
         if (video.Fps > 0)
         {
-            var fpsText = video.Fps % 1 == 0
-                ? ((int)video.Fps).ToString(CultureInfo.InvariantCulture)
-                : video.Fps.ToString("0.###", CultureInfo.InvariantCulture);
+            var gifFps = Math.Clamp(video.Fps, 1, 60);
+            var fpsText = gifFps % 1 == 0
+                ? ((int)gifFps).ToString(CultureInfo.InvariantCulture)
+                : gifFps.ToString("0.###", CultureInfo.InvariantCulture);
             FpsBox.Text = fpsText;
         }
+    }
+
+    private void Player_OnCropChanged(object? sender, EventArgs e)
+    {
+        if (_currentVideo is null) return;
+        if (!ApplySelectedScale())
+            UpdateHeightFromAspect();
+    }
+
+    private void GetSourceSize(out int width, out int height)
+    {
+        var crop = Player.GetCrop();
+        if (crop is not null)
+        {
+            width = crop.Width;
+            height = crop.Height;
+            return;
+        }
+
+        width = _currentVideo?.Width ?? 0;
+        height = _currentVideo?.Height ?? 0;
     }
 
     private void Player_OnMediaOpened(object? sender, EventArgs e)
@@ -490,13 +559,16 @@ public partial class MainWindow : Window
             SyncScaleFromWidth();
     }
 
-    private void PopulateScaleBox()
+    private void PopulateScaleBox() =>
+        RefreshScaleItems(ScaleBox?.SelectedValue as string ?? _scaleId);
+
+    private void RefreshScaleItems(string? selectedId)
     {
         if (ScaleBox is null) return;
-        var selected = ScaleBox.SelectedValue as string ?? "100";
+        selectedId ??= _scaleId;
         _suppressScaleEvents = true;
-        ScaleBox.ItemsSource = ScaleChoice.CreateAll();
-        ScaleBox.SelectedValue = selected;
+        ScaleBox.ItemsSource = ScaleChoice.CreateAll(_customScalePercent);
+        ScaleBox.SelectedValue = selectedId;
         if (ScaleBox.SelectedItem is null)
             ScaleBox.SelectedValue = "100";
         _suppressScaleEvents = false;
@@ -505,7 +577,51 @@ public partial class MainWindow : Window
     private void ScaleBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressScaleEvents) return;
+        if (ScaleBox.SelectedItem is not ScaleChoice choice) return;
+
+        if (choice.Id == "custom")
+        {
+            var previous = _scaleId;
+            Dispatcher.BeginInvoke(() => PromptCustomScale(previous), DispatcherPriority.Input);
+            return;
+        }
+
+        _scaleId = choice.Id;
         ApplySelectedScale();
+    }
+
+    private void PromptCustomScale(string previousId)
+    {
+        if (ScaleBox?.SelectedValue as string != "custom")
+            return;
+
+        var initial = _customScalePercent ?? GuessScalePercentFromWidth() ?? 40;
+        var dialog = new ScalePercentDialog(initial) { Owner = this };
+        if (dialog.ShowDialog() != true)
+        {
+            _suppressScaleEvents = true;
+            ScaleBox.SelectedValue = previousId == "custom" ? "100" : previousId;
+            if (ScaleBox.SelectedItem is null)
+                ScaleBox.SelectedValue = "100";
+            _suppressScaleEvents = false;
+            return;
+        }
+
+        _customScalePercent = dialog.Percent;
+        _scaleId = "custom";
+        RefreshScaleItems("custom");
+        ApplySelectedScale();
+    }
+
+    private int? GuessScalePercentFromWidth()
+    {
+        GetSourceSize(out var srcW, out _);
+        if (srcW <= 0 || WidthBox is null) return null;
+        if (!int.TryParse(WidthBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width) || width < 1)
+            return null;
+
+        var percent = (int)Math.Round(width / (double)srcW * 100);
+        return percent is >= 1 and <= 99 ? percent : null;
     }
 
     private bool ApplySelectedScale()
@@ -517,8 +633,7 @@ public partial class MainWindow : Window
 
     private bool ApplyScale(double factor)
     {
-        var srcW = _currentVideo?.Width ?? 0;
-        var srcH = _currentVideo?.Height ?? 0;
+        GetSourceSize(out var srcW, out var srcH);
         if (srcW <= 0 || WidthBox is null || HeightBox is null)
             return false;
 
@@ -544,17 +659,28 @@ public partial class MainWindow : Window
     private void SyncScaleFromWidth()
     {
         if (ScaleBox is null) return;
-        var srcW = _currentVideo?.Width ?? 0;
+        GetSourceSize(out var srcW, out _);
         if (srcW <= 0) return;
         if (!int.TryParse(WidthBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width) || width < 1)
             return;
 
         var ratio = width / (double)srcW;
         var match = ScaleChoice.CreateAll()
-            .FirstOrDefault(c => c.Factor > 0 && Math.Abs(c.Factor - ratio) < 0.02);
+            .FirstOrDefault(c => c.Id != "custom" && c.Factor > 0 && Math.Abs(c.Factor - ratio) < 0.02);
 
+        if (match is null)
+        {
+            var percent = (int)Math.Round(ratio * 100);
+            if (percent is >= 1 and <= 99)
+                _customScalePercent = percent;
+            _scaleId = "custom";
+            RefreshScaleItems("custom");
+            return;
+        }
+
+        _scaleId = match.Id;
         _suppressScaleEvents = true;
-        ScaleBox.SelectedValue = match?.Id ?? "custom";
+        ScaleBox.SelectedValue = match.Id;
         _suppressScaleEvents = false;
     }
 
@@ -563,8 +689,7 @@ public partial class MainWindow : Window
         if (KeepAspectCheck?.IsChecked != true || HeightBox is null || WidthBox is null)
             return;
 
-        var srcW = _currentVideo?.Width ?? 0;
-        var srcH = _currentVideo?.Height ?? 0;
+        GetSourceSize(out var srcW, out var srcH);
         if (srcW <= 0 || srcH <= 0)
             return;
 
@@ -609,6 +734,26 @@ public partial class MainWindow : Window
                            or GifCompressionMode.LosslessRectangle
                            or GifCompressionMode.LosslessPaletteDiff;
         QualitySlider.IsEnabled = !lossless;
+    }
+
+    private void PopulateSizeLimitBox()
+    {
+        if (SizeLimitBox is null) return;
+        var selected = SizeLimitBox.SelectedValue as string ?? "none";
+        SizeLimitBox.ItemsSource = SizeLimitChoice.CreateAll();
+        SizeLimitBox.SelectedValue = selected;
+        if (SizeLimitBox.SelectedItem is null)
+            SizeLimitBox.SelectedValue = "none";
+        UpdateSizeLimitTooltip();
+    }
+
+    private void SizeLimitBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateSizeLimitTooltip();
+
+    private void UpdateSizeLimitTooltip()
+    {
+        if (SizeLimitBox?.SelectedItem is SizeLimitChoice choice)
+            SizeLimitBox.ToolTip = choice.Description;
     }
 
     private async void GenerateGif_OnClick(object sender, RoutedEventArgs e)
@@ -684,12 +829,18 @@ public partial class MainWindow : Window
         {
             if (cts.IsCancellationRequested) return;
             ProgressBar.Value = p;
-            StatusText.Text = Loc.Format("GeneratingGifProgress", p);
+            if (settings.MaxBytes <= 0)
+                StatusText.Text = Loc.Format("GeneratingGifProgress", p);
+        });
+        var status = new Progress<string>(s =>
+        {
+            if (!cts.IsCancellationRequested)
+                StatusText.Text = s;
         });
 
         try
         {
-            await _ffmpeg.ConvertAsync(new GifConversionRequest
+            var result = await _ffmpeg.ConvertFittingAsync(new GifConversionRequest
             {
                 VideoPath = owner.FilePath,
                 OutputPath = outputPath,
@@ -697,14 +848,38 @@ public partial class MainWindow : Window
                 End = end,
                 Settings = settings,
                 Progress = progress,
+                Status = status,
                 CancellationToken = _convertCts.Token
             });
 
-            pending.FileSizeBytes = new FileInfo(outputPath).Length;
+            pending.Width = result.Settings.Width;
+            pending.Height = result.Settings.Height;
+            pending.Fps = result.Settings.Fps;
+            pending.Quality = result.Settings.Quality;
+            pending.FileSizeBytes = result.FileSizeBytes;
             pending.StatusKey = "StatusDone";
             pending.RefreshThumbnail();
-            StatusText.Text = Loc.Format("GenerateComplete", fileName);
             ProgressBar.Value = 1;
+
+            var sizeText = FfmpegGifService.FormatFileSize(result.FileSizeBytes);
+            if (result.ExceededSizeLimit)
+            {
+                var limitText = FfmpegGifService.FormatFileSize(settings.MaxBytes);
+                StatusText.Text = Loc.Format("FitStillLarge", sizeText, limitText);
+                MessageBox.Show(this,
+                    Loc.Format("FitStillLarge", sizeText, limitText),
+                    "ClipToGif", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else if (settings.MaxBytes > 0)
+            {
+                StatusText.Text = Loc.Format("FitComplete",
+                    FfmpegGifService.FormatFileSize(settings.MaxBytes), sizeText);
+            }
+            else
+            {
+                StatusText.Text = Loc.Format("GenerateComplete", fileName);
+            }
+
             Persist();
             GifList.Items.Refresh();
         }
@@ -716,7 +891,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            pending.StatusKey = "StatusFailed";
+            DiscardPendingGif(owner, pending, outputPath);
             StatusText.Text = Loc.Get("GenerateFailed");
             MessageBox.Show(this, ex.Message, Loc.Get("GenerateFailed"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -803,6 +978,10 @@ public partial class MainWindow : Window
         settings.Compression = CompressionBox.SelectedValue is GifCompressionMode mode
             ? mode
             : GifCompressionMode.None;
+        settings.Crop = Player.GetCrop();
+        settings.MaxBytes = SizeLimitBox?.SelectedItem is SizeLimitChoice limit
+            ? limit.MaxBytes
+            : 0;
         return true;
     }
 
@@ -815,6 +994,7 @@ public partial class MainWindow : Window
     {
         if (GifList.SelectedItem is not GifItem gif || !File.Exists(gif.FilePath))
         {
+            PruneMissingGifs();
             MessageBox.Show(this, Loc.Get("SelectValidGif"), "ClipToGif", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -927,6 +1107,7 @@ public partial class MainWindow : Window
             UpdateLanguageSwitch();
             PopulateCompressionBox();
             PopulateScaleBox();
+            PopulateSizeLimitBox();
 
             RefreshFfmpegStatus();
             UpdateGifCount(_currentVideo?.Gifs.Count ?? 0);

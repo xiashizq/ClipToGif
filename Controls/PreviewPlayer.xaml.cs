@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ClipToGif.Localization;
+using ClipToGif.Models;
 using Unosquare.FFME.Common;
 
 namespace ClipToGif.Controls;
@@ -24,6 +25,7 @@ public partial class PreviewPlayer : UserControl
     public event EventHandler<double>? PositionChanged;
     public event EventHandler? PlaybackStateChanged;
     public event EventHandler? SeekToStartRequested;
+    public event EventHandler? CropChanged;
 
     public bool HasMedia => _hasMedia && File.Exists(_currentPath ?? string.Empty);
 
@@ -47,6 +49,7 @@ public partial class PreviewPlayer : UserControl
             EmptyHint.Text = Loc.Get("EmptyHint");
         UpdatePlayPauseCaption();
         ApplyVolume();
+        UpdateCropCaption();
     }
 
     public void ShowEmpty()
@@ -55,6 +58,7 @@ public partial class PreviewPlayer : UserControl
         EmptyHint.Text = Loc.Get("EmptyHint");
         EmptyHint.Visibility = Visibility.Visible;
         MissingOverlay.Visibility = Visibility.Collapsed;
+        HideCrop();
         SetChromeEnabled(false);
     }
 
@@ -64,6 +68,7 @@ public partial class PreviewPlayer : UserControl
         EmptyHint.Visibility = Visibility.Collapsed;
         MissingOverlay.Visibility = Visibility.Visible;
         MissingPathText.Text = path;
+        HideCrop();
         SetChromeEnabled(false);
     }
 
@@ -98,6 +103,7 @@ public partial class PreviewPlayer : UserControl
             _hasMedia = false;
             EmptyHint.Text = Loc.Format("CannotOpenVideo", ex.Message);
             EmptyHint.Visibility = Visibility.Visible;
+            HideCrop();
             SetChromeEnabled(false);
         }
     }
@@ -183,6 +189,7 @@ public partial class PreviewPlayer : UserControl
         _hasMedia = false;
         _currentPath = null;
         _durationSeconds = 0;
+        HideCrop();
         try { await Media.Close(); } catch { /* ignore */ }
         PlaybackStateChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -193,6 +200,10 @@ public partial class PreviewPlayer : UserControl
         SeekStartButton.IsEnabled = enabled;
         MuteButton.IsEnabled = enabled;
         VolumeSlider.IsEnabled = enabled;
+        if (CropLayer is not null)
+            CropLayer.IsHitTestVisible = enabled;
+        if (ResetCropButton is not null)
+            ResetCropButton.IsEnabled = enabled && CropLayer is { HasCrop: true };
     }
 
     private void Media_OnMediaOpening(object? sender, MediaOpeningEventArgs e)
@@ -244,6 +255,10 @@ public partial class PreviewPlayer : UserControl
             _durationSeconds = duration.Value.TotalSeconds;
         else if (e.Info?.Duration.TotalSeconds > 0)
             _durationSeconds = e.Info.Duration.TotalSeconds;
+
+        if ((CropLayer?.VideoWidth ?? 0) <= 0 &&
+            Media.NaturalVideoWidth > 0 && Media.NaturalVideoHeight > 0)
+            SetVideoSize(Media.NaturalVideoWidth, Media.NaturalVideoHeight);
 
         UpdatePlayPauseCaption();
         MediaOpened?.Invoke(this, EventArgs.Empty);
@@ -309,6 +324,57 @@ public partial class PreviewPlayer : UserControl
         MuteButton.Content = Loc.Get(_isMuted || vol <= 0.001 ? "Unmute" : "Mute");
         Media.IsMuted = _isMuted;
         Media.Volume = _isMuted ? 0 : vol;
+    }
+
+    public VideoCrop? GetCrop() => CropLayer?.GetCrop();
+
+    public void SetVideoSize(int width, int height)
+    {
+        if (CropLayer is null) return;
+        CropLayer.SetVideoSize(width, height);
+        UpdateCropCaption();
+    }
+
+    public void ResetCrop()
+    {
+        CropLayer?.ResetCrop();
+        UpdateCropCaption();
+    }
+
+    private void HideCrop()
+    {
+        if (CropLayer is null) return;
+        CropLayer.ResetCrop();
+        CropLayer.Visibility = Visibility.Collapsed;
+        UpdateCropCaption();
+    }
+
+    private void CropLayer_OnCropChanged(object? sender, EventArgs e)
+    {
+        UpdateCropCaption();
+        CropChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ResetCropButton_OnClick(object sender, RoutedEventArgs e) =>
+        ResetCrop();
+
+    private void UpdateCropCaption()
+    {
+        if (CropSizeText is null || ResetCropButton is null)
+            return;
+
+        var crop = CropLayer?.GetCrop();
+        if (crop is null)
+        {
+            CropSizeText.Text = Loc.Get("CropHint");
+            ResetCropButton.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            CropSizeText.Text = Loc.Format("CropSize", crop.Width, crop.Height);
+            ResetCropButton.Visibility = Visibility.Visible;
+            ResetCropButton.IsEnabled = PlayPauseButton.IsEnabled;
+        }
     }
 
     private void PreviewPlayer_OnPreviewKeyDown(object sender, KeyEventArgs e)

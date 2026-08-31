@@ -1,0 +1,45 @@
+<Window x:Class="ClipToGif.ScalePercentDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource ScaleCustomTitle}"
+        Icon="pack://application:,,,/Assets/app.ico"
+        Width="360"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource ScaleCustomPrompt}"/>
+        <TextBox x:Name="PercentBox"
+                 Grid.Row="1"
+                 Margin="0,8,0,0"
+                 MaxLength="2"
+                 FontSize="18"
+                 FontWeight="SemiBold"
+                 HorizontalContentAlignment="Center"
+                 InputMethod.IsInputMethodEnabled="False"
+                 PreviewTextInput="PercentBox_OnPreviewTextInput"
+                 PreviewKeyDown="PercentBox_OnPreviewKeyDown"
+                 TextChanged="PercentBox_OnTextChanged"/>
+        <TextBlock x:Name="HintText"
+                   Grid.Row="2"
+                   Style="{StaticResource MutedText}"
+                   Text="{DynamicResource ScaleCustomHint}"
+                   Margin="0,8,0,0"
+                   TextWrapping="Wrap"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="CancelButton" Style="{StaticResource GhostButton}" Content="{DynamicResource DialogCancel}"
+                    IsCancel="True" Padding="16,8" Click="Cancel_OnClick"/>
+            <Button x:Name="OkButton" Style="{StaticResource PrimaryButton}" Content="{DynamicResource DialogOk}"
+                    IsDefault="True" Padding="16,8" Margin="8,0,0,0" Click="Ok_OnClick"/>
+        </StackPanel>
+    </Grid>
+</Window>

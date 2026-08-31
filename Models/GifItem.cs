@@ -24,13 +24,52 @@ public sealed class GifItem : INotifyPropertyChanged
 
     public TimeSpan End { get; init; }
 
-    public int Width { get; init; }
+    private int _width;
+    private int _height;
+    private double _fps;
+    private int _quality;
 
-    public int Height { get; init; }
+    public int Width
+    {
+        get => _width;
+        set
+        {
+            if (!SetField(ref _width, value)) return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SizeText)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MetaText)));
+        }
+    }
 
-    public double Fps { get; init; }
+    public int Height
+    {
+        get => _height;
+        set
+        {
+            if (!SetField(ref _height, value)) return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SizeText)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MetaText)));
+        }
+    }
 
-    public int Quality { get; init; }
+    public double Fps
+    {
+        get => _fps;
+        set
+        {
+            if (!SetField(ref _fps, value)) return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MetaText)));
+        }
+    }
+
+    public int Quality
+    {
+        get => _quality;
+        set
+        {
+            if (!SetField(ref _quality, value)) return;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MetaText)));
+        }
+    }
 
     public DateTime CreatedAt { get; init; } = DateTime.Now;
 

@@ -50,6 +50,12 @@ public sealed class GifExportSettings : INotifyPropertyChanged
         set => SetField(ref _compression, value);
     }
 
+    /// <summary>画面裁切；null 表示导出全幅。</summary>
+    public VideoCrop? Crop { get; set; }
+
+    /// <summary>0 表示不限制体积。</summary>
+    public long MaxBytes { get; set; }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? name = null)

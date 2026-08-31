@@ -55,21 +55,23 @@ public sealed class ProjectStore
                 Width = v.Width,
                 Height = v.Height,
                 Fps = v.Fps,
-                Gifs = v.Gifs.Select(g => new GifRecord
-                {
-                    Id = g.Id,
-                    VideoId = g.VideoId,
-                    FilePath = g.FilePath,
-                    DisplayName = g.DisplayName,
-                    StartSeconds = g.Start.TotalSeconds,
-                    EndSeconds = g.End.TotalSeconds,
-                    Width = g.Width,
-                    Height = g.Height,
-                    Fps = g.Fps,
-                    Quality = g.Quality,
-                    CreatedAt = g.CreatedAt,
-                    FileSizeBytes = g.FileSizeBytes
-                }).ToList()
+                Gifs = v.Gifs
+                    .Where(g => File.Exists(g.FilePath))
+                    .Select(g => new GifRecord
+                    {
+                        Id = g.Id,
+                        VideoId = g.VideoId,
+                        FilePath = g.FilePath,
+                        DisplayName = g.DisplayName,
+                        StartSeconds = g.Start.TotalSeconds,
+                        EndSeconds = g.End.TotalSeconds,
+                        Width = g.Width,
+                        Height = g.Height,
+                        Fps = g.Fps,
+                        Quality = g.Quality,
+                        CreatedAt = g.CreatedAt,
+                        FileSizeBytes = g.FileSizeBytes
+                    }).ToList()
             }).ToList()
         };
 

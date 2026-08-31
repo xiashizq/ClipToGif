@@ -1,0 +1,47 @@
+<UserControl x:Class="ClipToGif.Controls.CropOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent"
+             Cursor="Cross"
+             ClipToBounds="True">
+    <UserControl.Resources>
+        <Style x:Key="CropHandle" TargetType="Thumb">
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="Panel.ZIndex" Value="3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="White" BorderBrush="#2DD4BF" BorderThickness="1.5" CornerRadius="1"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Canvas x:Name="HostCanvas" Background="Transparent">
+        <Canvas x:Name="ContentCanvas"
+                Background="#01FFFFFF"
+                MouseLeftButtonDown="Content_OnMouseLeftButtonDown"
+                MouseMove="Content_OnMouseMove"
+                MouseLeftButtonUp="Content_OnMouseLeftButtonUp"
+                MouseLeave="Content_OnMouseLeave">
+            <Path x:Name="DimPath" Fill="#88000000" IsHitTestVisible="False"/>
+            <Border x:Name="CropFrame"
+                    BorderBrush="#2DD4BF"
+                    BorderThickness="2"
+                    Background="#14FFFFFF"
+                    Cursor="SizeAll"
+                    Panel.ZIndex="1"
+                    MouseLeftButtonDown="Frame_OnMouseLeftButtonDown"/>
+            <Thumb x:Name="HandleNW" Style="{StaticResource CropHandle}" Cursor="SizeNWSE" Tag="NW" DragStarted="Handle_OnDragStarted" DragDelta="Handle_OnDragDelta" DragCompleted="Handle_OnDragCompleted"/>
+            <Thumb x:Name="HandleN"  Style="{StaticResource CropHandle}" Cursor="SizeNS"   Tag="N"  DragStarted="Handle_OnDragStarted" DragDelta="Handle_OnDragDelta" DragCompleted="Handle_OnDragCompleted"/>
+            <Thumb x:Name="HandleNE" Style="{StaticResource CropHandle}" Cursor="SizeNESW" Tag="NE" DragStarted="Handle_OnDragStarted" DragDelta="Handle_OnDragDelta" DragCompleted="Handle_OnDragCompleted"/>
+            <Thumb x:Name="HandleE"  Style="{StaticResource CropHandle}" Cursor="SizeWE"   Tag="E"  DragStarted="Handle_OnDragStarted" DragDelta="Handle_OnDragDelta" DragCompleted="Handle_OnDragCompleted"/>
+            <Thumb x:Name="HandleSE" Style="{StaticResource CropHandle}" Cursor="SizeNWSE" Tag="SE" DragStarted="Handle_OnDragStarted" DragDelta="Handle_OnDragDelta" DragCompleted="Handle_OnDragCompleted"/>
+            <Thumb x:Name="HandleS"  Style="{StaticResource CropHandle}" Cursor="SizeNS"   Tag="S"  DragStarted="Handle_OnDragStarted" DragDelta="Handle_OnDragDelta" DragCompleted="Handle_OnDragCompleted"/>
+            <Thumb x:Name="HandleSW" Style="{StaticResource CropHandle}" Cursor="SizeNESW" Tag="SW" DragStarted="Handle_OnDragStarted" DragDelta="Handle_OnDragDelta" DragCompleted="Handle_OnDragCompleted"/>
+            <Thumb x:Name="HandleW"  Style="{StaticResource CropHandle}" Cursor="SizeWE"   Tag="W"  DragStarted="Handle_OnDragStarted" DragDelta="Handle_OnDragDelta" DragCompleted="Handle_OnDragCompleted"/>
+        </Canvas>
+    </Canvas>
+</UserControl>

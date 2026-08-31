@@ -107,7 +107,8 @@
                                             MediaOpened="Player_OnMediaOpened"
                                             MediaEnded="Player_OnMediaEnded"
                                             PositionChanged="Player_OnPositionChanged"
-                                            SeekToStartRequested="Player_OnSeekToStartRequested"/>
+                                            SeekToStartRequested="Player_OnSeekToStartRequested"
+                                            CropChanged="Player_OnCropChanged"/>
                 </Border>
 
                 <StackPanel Grid.Row="2" Margin="0,10,0,0">
@@ -203,6 +204,17 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="3" Grid.Column="4" VerticalAlignment="Bottom" Margin="0,8,0,0">
+                            <TextBlock Style="{StaticResource MutedText}" Text="{DynamicResource SizeLimitLabel}"/>
+                            <ComboBox x:Name="SizeLimitBox"
+                                      Margin="0,4,0,8"
+                                      SelectedValuePath="Id"
+                                      SelectionChanged="SizeLimitBox_OnSelectionChanged">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" ToolTip="{Binding Description}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                             <Grid Height="36">
                                 <Button x:Name="GenerateButton" Style="{StaticResource PrimaryButton}" Content="{DynamicResource GenerateGif}" Click="GenerateGif_OnClick"/>
                                 <Button x:Name="CancelGenerateButton" Style="{StaticResource DangerGhostButton}" Content="{DynamicResource CancelGenerate}" Click="CancelGenerate_OnClick" Visibility="Collapsed"/>

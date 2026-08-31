@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ffme="clr-namespace:Unosquare.FFME;assembly=ffme.win"
+             xmlns:controls="clr-namespace:ClipToGif.Controls"
              Background="#111318"
              Focusable="True">
     <UserControl.Resources>
@@ -81,19 +82,24 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ffme:MediaElement x:Name="Media"
-                           Grid.Row="0"
-                           Background="#111318"
-                           LoadedBehavior="Pause"
-                           UnloadedBehavior="Manual"
-                           ScrubbingEnabled="True"
-                           Volume="0.8"
-                           MediaOpening="Media_OnMediaOpening"
-                           MediaOpened="Media_OnMediaOpened"
-                           MediaFailed="Media_OnMediaFailed"
-                           MediaEnded="Media_OnMediaEnded"
-                           PositionChanged="Media_OnPositionChanged"
-                           MediaStateChanged="Media_OnMediaStateChanged"/>
+        <Grid x:Name="VideoHost" Grid.Row="0">
+            <ffme:MediaElement x:Name="Media"
+                               Background="#111318"
+                               Stretch="Uniform"
+                               LoadedBehavior="Pause"
+                               UnloadedBehavior="Manual"
+                               ScrubbingEnabled="True"
+                               Volume="0.8"
+                               MediaOpening="Media_OnMediaOpening"
+                               MediaOpened="Media_OnMediaOpened"
+                               MediaFailed="Media_OnMediaFailed"
+                               MediaEnded="Media_OnMediaEnded"
+                               PositionChanged="Media_OnPositionChanged"
+                               MediaStateChanged="Media_OnMediaStateChanged"/>
+            <controls:CropOverlay x:Name="CropLayer"
+                                  Visibility="Collapsed"
+                                  CropChanged="CropLayer_OnCropChanged"/>
+        </Grid>
 
         <TextBlock x:Name="EmptyHint"
                    Grid.Row="0"
@@ -126,14 +132,14 @@
         </Border>
 
         <Border Grid.Row="1" Background="#1A1E26" Padding="10,6">
-            <Grid>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="PlayPauseButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource Play}"
                             Click="PlayPauseButton_OnClick" Padding="10,4" IsEnabled="False"/>
                     <Button x:Name="SeekStartButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource SeekToStart}"
                             Click="SeekStartButton_OnClick" Padding="10,4" Margin="4,0,0,0" IsEnabled="False"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
                     <TextBlock x:Name="VolumeLabel" Text="{DynamicResource Volume}" Foreground="#C9D0D8" FontSize="12" VerticalAlignment="Center"/>
                     <Button x:Name="MuteButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource Mute}"
                             Click="MuteButton_OnClick" Margin="8,0,0,0" IsEnabled="False"/>
@@ -146,7 +152,16 @@
                             ValueChanged="VolumeSlider_OnValueChanged"/>
                     <TextBlock x:Name="VolumeText" Text="80%" Foreground="#C9D0D8" FontSize="12" VerticalAlignment="Center" Width="36"/>
                 </StackPanel>
-            </Grid>
+                <DockPanel LastChildFill="True" Margin="12,0" VerticalAlignment="Center">
+                    <Button x:Name="ResetCropButton" DockPanel.Dock="Right" Style="{StaticResource VolumeButton}"
+                            Content="{DynamicResource CropReset}"
+                            Click="ResetCropButton_OnClick" Padding="10,4" Margin="8,0,0,0"
+                            Visibility="Collapsed" IsEnabled="False"/>
+                    <TextBlock x:Name="CropSizeText" Foreground="#C9D0D8" FontSize="12" VerticalAlignment="Center"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               Text="{DynamicResource CropHint}" TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+            </DockPanel>
         </Border>
     </Grid>
 </UserControl>
