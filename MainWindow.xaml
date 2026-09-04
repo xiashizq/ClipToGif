@@ -64,7 +64,12 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           PanningMode="VerticalOnly"
+                          Padding="0,0,8,0"
                           Focusable="False">
+                <ScrollViewer.Resources>
+                    <Style TargetType="{x:Type ScrollBar}"
+                           BasedOn="{StaticResource WorkspaceScrollBar}"/>
+                </ScrollViewer.Resources>
             <Grid MinHeight="{Binding ViewportHeight, ElementName=WorkspaceScrollViewer}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
