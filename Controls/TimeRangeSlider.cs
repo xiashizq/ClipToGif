@@ -22,7 +22,9 @@ public class TimeRangeSlider : Control
     private Thumb? _playheadThumb;
     private Border? _rangeHit;
     private ScrollBar? _horizontalScroll;
+    private bool _rangePointerDown;
     private bool _draggingRange;
+    private double _rangePressX;
     private double _dragOffset;
     private double _viewStart;
     private double? _pendingZoomAnchor;
@@ -398,7 +400,6 @@ public class TimeRangeSlider : Control
         IsDraggingPlayhead = true;
         SetPositionAndSeek(next);
         IsDraggingPlayhead = false;
-        RaiseSeek(next);
         e.Handled = true;
     }
 
@@ -417,28 +418,67 @@ public class TimeRangeSlider : Control
     {
         if (_rangeHit is null || _trackCanvas is null) return;
 
-        _draggingRange = true;
+        _rangePointerDown = true;
+        _draggingRange = false;
         _rangeHit.CaptureMouse();
         var x = e.GetPosition(_trackCanvas).X;
+        _rangePressX = x;
         _dragOffset = x - ValueToPixel(Start);
         e.Handled = true;
     }
 
     private void RangeHit_OnMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_draggingRange || _trackCanvas is null) return;
-        var x = e.GetPosition(_trackCanvas).X - _dragOffset;
+        if (!_rangePointerDown || _trackCanvas is null)
+            return;
+
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            ResetRangePointerState();
+            return;
+        }
+
+        var pointerX = e.GetPosition(_trackCanvas).X;
+        if (!_draggingRange)
+        {
+            if (Math.Abs(pointerX - _rangePressX) < SystemParameters.MinimumHorizontalDragDistance)
+                return;
+            _draggingRange = true;
+        }
+
+        var x = pointerX - _dragOffset;
         var span = End - Start;
         var nextStart = Math.Clamp(PixelToValueAbsolute(x), Minimum, Maximum - span);
         SetCurrentValue(StartProperty, nextStart);
         SetCurrentValue(EndProperty, nextStart + span);
         UpdateVisuals();
+        e.Handled = true;
     }
 
     private void RangeHit_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (!_rangePointerDown || _trackCanvas is null)
+            return;
+
+        var wasDragging = _draggingRange;
+        var pointerX = e.GetPosition(_trackCanvas).X;
+        ResetRangePointerState();
+
+        if (!wasDragging)
+        {
+            var next = Math.Clamp(PixelToValueAbsolute(pointerX), Minimum, Maximum);
+            SetPositionAndSeek(next);
+        }
+
+        e.Handled = true;
+    }
+
+    private void ResetRangePointerState()
+    {
+        _rangePointerDown = false;
         _draggingRange = false;
-        _rangeHit?.ReleaseMouseCapture();
+        if (_rangeHit?.IsMouseCaptured == true)
+            _rangeHit.ReleaseMouseCapture();
     }
 
     private void SetPositionAndSeek(double seconds)
