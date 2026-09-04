@@ -11,10 +11,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
 
@@ -102,13 +102,13 @@ jobs:
           Write-Host "Created $name ($([math]::Round((Get-Item $zip).Length / 1MB, 1)) MB)"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ClipToGif-${{ env.APP_VERSION }}-win-x64
           path: ${{ github.workspace }}/${{ env.PACKAGE_NAME }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.APP_VERSION }}
           name: ClipToGif ${{ env.APP_VERSION }}
