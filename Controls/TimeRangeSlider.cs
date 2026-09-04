@@ -186,6 +186,7 @@ public class TimeRangeSlider : Control
 
         SizeChanged += TimeRangeSlider_OnSizeChanged;
         PreviewMouseWheel += TimeRangeSlider_OnPreviewMouseWheel;
+        PreviewMouseLeftButtonDown += (_, _) => Focus();
         UpdateVisuals();
     }
 
@@ -646,7 +647,7 @@ public class TimeRangeSlider : Control
     {
         double[] steps =
         [
-            0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30,
+            0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30,
             60, 120, 300, 600, 900, 1800, 3600
         ];
         var desired = visibleSpan / Math.Max(1, width / 90);
@@ -656,6 +657,8 @@ public class TimeRangeSlider : Control
     private static string FormatRulerTime(double seconds, double step)
     {
         var time = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        if (step < 0.1)
+            return time.ToString(@"mm\:ss\.ff", CultureInfo.InvariantCulture);
         if (step < 1)
             return time.ToString(@"mm\:ss\.f", CultureInfo.InvariantCulture);
         return time.TotalHours >= 1
@@ -666,5 +669,5 @@ public class TimeRangeSlider : Control
     private static bool NearlyEqual(double a, double b) => Math.Abs(a - b) < 0.0001;
 
     public string FormatTime(double seconds) =>
-        TimeSpan.FromSeconds(seconds).ToString(@"mm\:ss\.f", CultureInfo.InvariantCulture);
+        TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(@"mm\:ss\.ff", CultureInfo.InvariantCulture);
 }

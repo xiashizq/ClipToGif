@@ -5,6 +5,8 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using ClipToGif.Controls;
 using ClipToGif.Localization;
@@ -353,6 +355,8 @@ public partial class MainWindow : Window
         RemoveButton.IsEnabled = _currentVideo is not null || VideoList.SelectedItem is not null;
         Player.SetChromeEnabled(enabled && !videoMissing);
         RangeSlider.IsEnabled = enabled && !_isGenerating;
+        if (StartBox is not null) StartBox.IsEnabled = RangeSlider.IsEnabled;
+        if (EndBox is not null) EndBox.IsEnabled = RangeSlider.IsEnabled;
         TimelineZoomSlider.IsEnabled = enabled && !_isGenerating;
         ExportPanel.IsEnabled = enabled || _isGenerating;
         GenerateButton.IsEnabled = enabled && !_isGenerating;
@@ -493,8 +497,6 @@ public partial class MainWindow : Window
         RangeSlider.FitToDuration();
         _suppressRangeEvents = false;
 
-        DurationStartLabel.Text = "00:00";
-        DurationEndLabel.Text = Loc.Format("TotalDuration", FormatTime(totalSeconds));
         OnRangeChanged();
         UpdatePositionLabels(0);
         UpdatePlayerTimeText(0);
@@ -579,12 +581,144 @@ public partial class MainWindow : Window
 
     private void OnRangeChanged()
     {
+        Player.SetSelectionRange(RangeSlider.Start, RangeSlider.End);
         if (_suppressRangeEvents) return;
-        StartLabel.Text = Loc.Format("RangeStart", FormatTime(RangeSlider.Start));
-        EndLabel.Text = Loc.Format("RangeEnd", FormatTime(RangeSlider.End));
+        RefreshRangeBoxes();
         var span = RangeSlider.End - RangeSlider.Start;
-        var spanText = span >= 60 ? FormatTime(span) : $"{span:0.0}s";
+        var spanText = span >= 60 ? FormatTime(span) : $"{span:0.00}s";
         SelectionLabel.Text = Loc.Format("Selection", spanText);
+    }
+
+    private void RefreshRangeBoxes()
+    {
+        SetBoxText(StartBox, FormatTime(RangeSlider.Start));
+        SetBoxText(EndBox, FormatTime(RangeSlider.End));
+    }
+
+    private static void SetBoxText(TextBox? box, string text)
+    {
+        if (box is not null && box.Text != text)
+            box.Text = text;
+    }
+
+    private void Window_OnPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Keyboard.FocusedElement is not TextBox focused)
+            return;
+        if (e.OriginalSource is DependencyObject src && FindAncestor<TextBox>(src) is not null)
+            return;
+
+        ReleaseTextBoxFocus();
+    }
+
+    private void ReleaseTextBoxFocus()
+    {
+        FocusManager.SetFocusedElement(this, this);
+        Focus();
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? node) where T : DependencyObject
+    {
+        while (node is not null)
+        {
+            if (node is T match)
+                return match;
+            node = VisualTreeHelper.GetParent(node);
+        }
+        return null;
+    }
+
+    private void RangeTimeBox_OnGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is TextBox box)
+            box.Dispatcher.BeginInvoke(box.SelectAll);
+    }
+
+    private void RangeTimeBox_OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is TextBox box)
+            CommitRangeBox(box);
+    }
+
+    private void RangeTimeBox_OnKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox box)
+            return;
+
+        if (e.Key == Key.Enter)
+        {
+            CommitRangeBox(box);
+            ReleaseTextBoxFocus();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            box.Text = FormatTime(ReferenceEquals(box, StartBox) ? RangeSlider.Start : RangeSlider.End);
+            ReleaseTextBoxFocus();
+            e.Handled = true;
+        }
+    }
+
+    private void CommitRangeBox(TextBox box)
+    {
+        var isStart = ReferenceEquals(box, StartBox);
+        if (!TryParseTime(box.Text, out var seconds))
+        {
+            box.Text = FormatTime(isStart ? RangeSlider.Start : RangeSlider.End);
+            if (StatusText is not null)
+                StatusText.Text = Loc.Get("RangeTimeInvalid");
+            return;
+        }
+
+        var min = RangeSlider.Minimum;
+        var max = Math.Max(min, RangeSlider.Maximum);
+        var minSpan = Math.Max(0.01, RangeSlider.MinimumRange);
+
+        if (isStart)
+            RangeSlider.Start = Math.Clamp(seconds, min, Math.Max(min, RangeSlider.End - minSpan));
+        else
+            RangeSlider.End = Math.Clamp(seconds, Math.Min(max, RangeSlider.Start + minSpan), max);
+
+        var applied = isStart ? RangeSlider.Start : RangeSlider.End;
+        box.Text = FormatTime(applied);
+        RangeSlider.EnsureVisible(applied);
+        if (!Player.IsPlaying)
+            SeekTo(applied);
+    }
+
+    private static bool TryParseTime(string? text, out double seconds)
+    {
+        seconds = 0;
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        var raw = text.Trim()
+            .Replace('：', ':')
+            .Replace('，', '.')
+            .Replace(',', '.');
+
+        if (!raw.Contains(':'))
+            return double.TryParse(raw, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
+                       CultureInfo.InvariantCulture, out seconds)
+                   && seconds >= 0;
+
+        var parts = raw.Split(':');
+        if (parts.Length is < 2 or > 3)
+            return false;
+
+        static bool TryPart(string value, out double number) =>
+            double.TryParse(value, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out number);
+
+        double hour = 0;
+        if (parts.Length == 3 && !TryPart(parts[0], out hour))
+            return false;
+        if (!TryPart(parts[^2], out var minute) || !TryPart(parts[^1], out var second))
+            return false;
+        if (hour < 0 || minute < 0 || second < 0 || minute >= 60 || second >= 60)
+            return false;
+
+        seconds = hour * 3600 + minute * 60 + second;
+        return true;
     }
 
     private void UpdatePositionLabels(double seconds) =>
@@ -594,8 +728,8 @@ public partial class MainWindow : Window
     {
         var ts = TimeSpan.FromSeconds(Math.Max(0, seconds));
         return ts.TotalHours >= 1
-            ? ts.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
-            : ts.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
+            ? ts.ToString(@"h\:mm\:ss\.ff", CultureInfo.InvariantCulture)
+            : ts.ToString(@"mm\:ss\.ff", CultureInfo.InvariantCulture);
     }
 
     private void QualitySlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -1184,8 +1318,6 @@ public partial class MainWindow : Window
             UpdateGifCount(_currentVideo?.Gifs.Count ?? 0);
             OnRangeChanged();
             UpdatePositionLabels(RangeSlider.Position);
-            if (RangeSlider.Maximum > 1)
-                DurationEndLabel.Text = Loc.Format("TotalDuration", FormatTime(RangeSlider.Maximum));
 
             foreach (var video in _videos)
             {

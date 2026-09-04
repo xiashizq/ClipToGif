@@ -19,6 +19,14 @@ public partial class PreviewPlayer : UserControl
     private int _openGeneration;
     private bool _preferHardware = true;
     private bool _softwareFallbackTried;
+    private double _selectionStart;
+    private double _selectionEnd;
+    private bool _rangePlayback;
+    private bool _suppressRangeStop;
+    private double _rangePlayEnd;
+    private bool _isPlaying;
+    private int _seekGeneration;
+    private bool _engineSeeking;
 
     public event EventHandler? MediaOpened;
     public event EventHandler? MediaEnded;
@@ -29,7 +37,7 @@ public partial class PreviewPlayer : UserControl
 
     public bool HasMedia => _hasMedia && File.Exists(_currentPath ?? string.Empty);
 
-    public bool IsPlaying => Media.IsPlaying;
+    public bool IsPlaying => _isPlaying;
 
     public double PositionSeconds => Media.Position.TotalSeconds;
 
@@ -47,7 +55,7 @@ public partial class PreviewPlayer : UserControl
         if (EmptyHint.Visibility == Visibility.Visible &&
             string.IsNullOrWhiteSpace(_currentPath))
             EmptyHint.Text = Loc.Get("EmptyHint");
-        UpdatePlayPauseCaption();
+        UpdatePlaybackCaptions();
         ApplyVolume();
         UpdateCropCaption();
     }
@@ -131,25 +139,85 @@ public partial class PreviewPlayer : UserControl
         }
     }
 
+    public void SetSelectionRange(double start, double end)
+    {
+        _selectionStart = Math.Min(start, end);
+        _selectionEnd = Math.Max(start, end);
+        if (!_rangePlayback)
+            return;
+
+        _rangePlayEnd = _durationSeconds > 0
+            ? Math.Clamp(_selectionEnd, 0, _durationSeconds)
+            : _selectionEnd;
+        if (PositionSeconds >= _rangePlayEnd - 0.04)
+            _ = StopAtRangeEndAsync();
+    }
+
     public void Play() => _ = PlayAsync();
 
     private async Task PlayAsync()
     {
         if (!_hasMedia) return;
-        if (_durationSeconds > 0 && PositionSeconds >= _durationSeconds - 0.08)
-            await Media.Seek(TimeSpan.Zero);
-        await Media.Play();
-        UpdatePlayPauseCaption();
-        PlaybackStateChanged?.Invoke(this, EventArgs.Empty);
+        SetPlaying(true, rangePlayback: false);
+        try
+        {
+            ApplyVolume();
+            if (_durationSeconds > 0 && PositionSeconds >= _durationSeconds - 0.08)
+                await Media.Seek(TimeSpan.Zero);
+            await Media.Play();
+        }
+        catch
+        {
+            SetPlaying(false);
+        }
+    }
+
+    public void PlayRange() => _ = PlayRangeAsync();
+
+    private async Task PlayRangeAsync()
+    {
+        if (!_hasMedia) return;
+
+        var duration = Math.Max(0, _durationSeconds);
+        var start = Math.Clamp(_selectionStart, 0, duration);
+        var end = Math.Clamp(_selectionEnd, 0, duration);
+        if (end - start < 0.05)
+            end = Math.Min(duration, start + 0.05);
+
+        _rangePlayEnd = end;
+        SetPlaying(true, rangePlayback: true);
+        try
+        {
+            var pos = PositionSeconds;
+            if (pos < start - 0.04 || pos >= end - 0.08)
+            {
+                _suppressRangeStop = true;
+                try
+                {
+                    await Media.Seek(TimeSpan.FromSeconds(start));
+                    PositionChanged?.Invoke(this, start);
+                }
+                finally
+                {
+                    _suppressRangeStop = false;
+                }
+            }
+
+            ApplyVolume();
+            await Media.Play();
+        }
+        catch
+        {
+            SetPlaying(false);
+        }
     }
 
     public void Pause() => _ = PauseAsync();
 
     private async Task PauseAsync()
     {
-        await Media.Pause();
-        UpdatePlayPauseCaption();
-        PlaybackStateChanged?.Invoke(this, EventArgs.Empty);
+        SetPlaying(false);
+        try { await Media.Pause(); } catch { /* ignore */ }
     }
 
     public void TogglePlay()
@@ -166,9 +234,55 @@ public partial class PreviewPlayer : UserControl
     private async Task SeekAsync(double seconds)
     {
         if (!_hasMedia || _durationSeconds <= 0) return;
+        if (_rangePlayback)
+        {
+            _rangePlayback = false;
+            UpdatePlaybackCaptions();
+        }
+
         seconds = Math.Clamp(seconds, 0, _durationSeconds);
-        await Media.Seek(TimeSpan.FromSeconds(seconds));
-        PositionChanged?.Invoke(this, seconds);
+        var gen = ++_seekGeneration;
+        var resume = _isPlaying;
+        try
+        {
+            await Media.Seek(TimeSpan.FromSeconds(seconds));
+            if (gen != _seekGeneration) return;
+
+            if (!resume)
+                await Media.Pause();
+
+            PositionChanged?.Invoke(this, seconds);
+        }
+        catch
+        {
+            if (gen == _seekGeneration)
+                PositionChanged?.Invoke(this, seconds);
+        }
+        finally
+        {
+            if (gen == _seekGeneration)
+                ApplyVolume();
+        }
+    }
+
+    private async Task StopAtRangeEndAsync()
+    {
+        if (_suppressRangeStop) return;
+        _suppressRangeStop = true;
+        SetPlaying(false);
+        try
+        {
+            await Media.Pause();
+            var end = _durationSeconds > 0
+                ? Math.Clamp(_rangePlayEnd, 0, _durationSeconds)
+                : Math.Max(0, _rangePlayEnd);
+            await Media.Seek(TimeSpan.FromSeconds(end));
+            PositionChanged?.Invoke(this, end);
+        }
+        finally
+        {
+            _suppressRangeStop = false;
+        }
     }
 
     public void SeekToStart() => Seek(0);
@@ -189,6 +303,8 @@ public partial class PreviewPlayer : UserControl
         _hasMedia = false;
         _currentPath = null;
         _durationSeconds = 0;
+        _rangePlayback = false;
+        _isPlaying = false;
         HideCrop();
         try { await Media.Close(); } catch { /* ignore */ }
         PlaybackStateChanged?.Invoke(this, EventArgs.Empty);
@@ -197,6 +313,7 @@ public partial class PreviewPlayer : UserControl
     public void SetChromeEnabled(bool enabled)
     {
         PlayPauseButton.IsEnabled = enabled;
+        PlayRangeButton.IsEnabled = enabled;
         SeekStartButton.IsEnabled = enabled;
         MuteButton.IsEnabled = enabled;
         VolumeSlider.IsEnabled = enabled;
@@ -204,6 +321,11 @@ public partial class PreviewPlayer : UserControl
             CropLayer.IsHitTestVisible = enabled;
         if (ResetCropButton is not null)
             ResetCropButton.IsEnabled = enabled && CropLayer is { HasCrop: true };
+    }
+
+    private void Media_OnMediaInitializing(object? sender, MediaInitializingEventArgs e)
+    {
+        e.Configuration.GlobalOptions.FlagEnableFastSeek = false;
     }
 
     private void Media_OnMediaOpening(object? sender, MediaOpeningEventArgs e)
@@ -260,35 +382,96 @@ public partial class PreviewPlayer : UserControl
             Media.NaturalVideoWidth > 0 && Media.NaturalVideoHeight > 0)
             SetVideoSize(Media.NaturalVideoWidth, Media.NaturalVideoHeight);
 
-        UpdatePlayPauseCaption();
+        UpdatePlaybackCaptions();
         MediaOpened?.Invoke(this, EventArgs.Empty);
         PlaybackStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void Media_OnMediaEnded(object? sender, EventArgs e)
     {
+        SetPlaying(false);
         MediaEnded?.Invoke(this, EventArgs.Empty);
         PlaybackStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void Media_OnPositionChanged(object? sender, PositionChangedEventArgs e) =>
-        PositionChanged?.Invoke(this, e.Position.TotalSeconds);
+    private void Media_OnSeekingStarted(object? sender, EventArgs e) =>
+        _engineSeeking = true;
+
+    private void Media_OnSeekingEnded(object? sender, EventArgs e)
+    {
+        _engineSeeking = false;
+        if (!_isPlaying)
+            _ = Media.Pause();
+        ApplyVolume();
+    }
+
+    private void Media_OnPositionChanged(object? sender, PositionChangedEventArgs e)
+    {
+        if ((_engineSeeking || Media.IsSeeking) && !_isPlaying)
+            return;
+
+        var seconds = e.Position.TotalSeconds;
+        PositionChanged?.Invoke(this, seconds);
+        if (_rangePlayback && !_suppressRangeStop && seconds >= _rangePlayEnd - 0.04)
+            _ = StopAtRangeEndAsync();
+    }
 
     private void Media_OnMediaStateChanged(object? sender, MediaStateChangedEventArgs e)
     {
-        UpdatePlayPauseCaption();
         PlaybackStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void PlayPauseButton_OnClick(object sender, RoutedEventArgs e) => TogglePlay();
+    private void PlayPauseButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_hasMedia) return;
+        if (IsPlaying && _rangePlayback)
+            Play();
+        else
+            TogglePlay();
+    }
+
+    private void PlayRangeButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_hasMedia) return;
+        if (IsPlaying && _rangePlayback)
+            Pause();
+        else
+            PlayRange();
+    }
 
     private void SeekStartButton_OnClick(object sender, RoutedEventArgs e) =>
         SeekToStartRequested?.Invoke(this, EventArgs.Empty);
 
-    private void UpdatePlayPauseCaption()
+    private void UpdatePlaybackCaptions()
     {
-        if (PlayPauseButton is null) return;
-        PlayPauseButton.Content = Loc.Get(IsPlaying ? "Pause" : "Play");
+        var fullPlaying = _isPlaying && !_rangePlayback;
+        var rangePlaying = _isPlaying && _rangePlayback;
+        ApplyPlaybackButton(
+            PlayPauseButton,
+            Loc.Get(fullPlaying ? "Pause" : "Play"),
+            Loc.Get(fullPlaying ? "PauseTooltip" : "PlayTooltip"),
+            fullPlaying);
+        ApplyPlaybackButton(
+            PlayRangeButton,
+            Loc.Get(rangePlaying ? "Pause" : "PlayRange"),
+            Loc.Get(rangePlaying ? "PauseRangeTooltip" : "PlayRangeTooltip"),
+            rangePlaying);
+    }
+
+    private void ApplyPlaybackButton(Button? button, string content, string toolTip, bool active)
+    {
+        if (button is null) return;
+        button.Style = (Style)FindResource(active ? "PlayingButton" : "VolumeButton");
+        button.Content = content;
+        button.ToolTip = toolTip;
+    }
+
+    private void SetPlaying(bool playing, bool rangePlayback = false)
+    {
+        _isPlaying = playing;
+        _rangePlayback = playing && rangePlayback;
+        UpdatePlaybackCaptions();
+        PlaybackStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void VolumeSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -400,7 +583,7 @@ public partial class PreviewPlayer : UserControl
     {
         var ts = TimeSpan.FromSeconds(Math.Max(0, seconds));
         return ts.TotalHours >= 1
-            ? ts.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
-            : ts.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
+            ? ts.ToString(@"h\:mm\:ss\.ff", CultureInfo.InvariantCulture)
+            : ts.ToString(@"mm\:ss\.ff", CultureInfo.InvariantCulture);
     }
 }

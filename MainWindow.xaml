@@ -10,6 +10,7 @@
         AllowDrop="True"
         Drop="Window_OnDrop"
         DragOver="Window_OnDragOver"
+        PreviewMouseDown="Window_OnPreviewMouseDown"
         PreviewKeyDown="Window_OnPreviewKeyDown">
     <Grid Margin="18">
         <Grid.ColumnDefinitions>
@@ -109,7 +110,7 @@
                                 </Border>
                             </StackPanel>
                         </Border>
-                        <TextBlock x:Name="PlayerTimeText" Style="{StaticResource MutedText}" Text="00:00 / 00:00" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        <TextBlock x:Name="PlayerTimeText" Style="{StaticResource MutedText}" Text="00:00.00 / 00:00.00" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     </StackPanel>
                 </DockPanel>
 
@@ -201,24 +202,42 @@
 
                         <Grid Grid.Row="2" Margin="2,6,2,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="20"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="20"/>
-                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <TextBlock x:Name="DurationStartLabel" Style="{StaticResource MutedText}" Text="00:00"/>
-                                <TextBlock Text="  /  " Style="{StaticResource MutedText}"/>
-                                <TextBlock x:Name="DurationEndLabel" Style="{StaticResource MutedText}" Text="时长 --:--"/>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource TimelineMetricText}"
+                                           Text="{DynamicResource RangeStartLabel}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,6,0"/>
+                                <TextBox x:Name="StartBox"
+                                         Style="{StaticResource RangeTimeBox}"
+                                         Text="00:00.00"
+                                         ToolTip="{DynamicResource RangeTimeTooltip}"
+                                         GotKeyboardFocus="RangeTimeBox_OnGotKeyboardFocus"
+                                         LostKeyboardFocus="RangeTimeBox_OnLostKeyboardFocus"
+                                         KeyDown="RangeTimeBox_OnKeyDown"/>
                             </StackPanel>
-                            <TextBlock x:Name="StartLabel" Grid.Column="1" Style="{StaticResource TimelineMetricText}" Text="起点 00:00"/>
-                            <TextBlock x:Name="EndLabel" Grid.Column="3" Style="{StaticResource TimelineMetricText}" Text="终点 00:00"/>
-                            <StackPanel Grid.Column="5" Orientation="Horizontal">
-                                <TextBlock x:Name="PositionLabel" Style="{StaticResource TimelineMetricText}" Text="当前位置 00:00"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource TimelineMetricText}"
+                                           Text="{DynamicResource RangeEndLabel}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,6,0"/>
+                                <TextBox x:Name="EndBox"
+                                         Style="{StaticResource RangeTimeBox}"
+                                         Text="00:00.00"
+                                         ToolTip="{DynamicResource RangeTimeTooltip}"
+                                         GotKeyboardFocus="RangeTimeBox_OnGotKeyboardFocus"
+                                         LostKeyboardFocus="RangeTimeBox_OnLostKeyboardFocus"
+                                         KeyDown="RangeTimeBox_OnKeyDown"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="PositionLabel" Style="{StaticResource TimelineMetricText}" Text="当前位置 00:00.00"/>
                                 <TextBlock Text="  ·  " Style="{StaticResource MutedText}"/>
-                                <TextBlock x:Name="SelectionLabel" Style="{StaticResource TimelineMetricText}" Text="选区 0.0s"/>
+                                <TextBlock x:Name="SelectionLabel" Style="{StaticResource TimelineMetricText}" Text="选区 0.00s"/>
                             </StackPanel>
                         </Grid>
                     </Grid>

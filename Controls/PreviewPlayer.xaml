@@ -30,6 +30,28 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="PlayingButton" TargetType="Button" BasedOn="{StaticResource VolumeButton}">
+            <Setter Property="Background" Value="#0F766E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#0D9488"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="VolumeSliderStyle" TargetType="Slider">
             <Setter Property="Minimum" Value="0"/>
             <Setter Property="Maximum" Value="1"/>
@@ -88,12 +110,15 @@
                                Stretch="Uniform"
                                LoadedBehavior="Pause"
                                UnloadedBehavior="Manual"
-                               ScrubbingEnabled="True"
+                               ScrubbingEnabled="False"
                                Volume="0.8"
+                               MediaInitializing="Media_OnMediaInitializing"
                                MediaOpening="Media_OnMediaOpening"
                                MediaOpened="Media_OnMediaOpened"
                                MediaFailed="Media_OnMediaFailed"
                                MediaEnded="Media_OnMediaEnded"
+                               SeekingStarted="Media_OnSeekingStarted"
+                               SeekingEnded="Media_OnSeekingEnded"
                                PositionChanged="Media_OnPositionChanged"
                                MediaStateChanged="Media_OnMediaStateChanged"/>
             <controls:CropOverlay x:Name="CropLayer"
@@ -135,7 +160,11 @@
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="PlayPauseButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource Play}"
-                            Click="PlayPauseButton_OnClick" Padding="10,4" IsEnabled="False"/>
+                            Click="PlayPauseButton_OnClick" Padding="10,4" MinWidth="64" IsEnabled="False"
+                            ToolTip="{DynamicResource PlayTooltip}"/>
+                    <Button x:Name="PlayRangeButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource PlayRange}"
+                            Click="PlayRangeButton_OnClick" Padding="10,4" Margin="4,0,0,0" MinWidth="88" IsEnabled="False"
+                            ToolTip="{DynamicResource PlayRangeTooltip}"/>
                     <Button x:Name="SeekStartButton" Style="{StaticResource VolumeButton}" Content="{DynamicResource SeekToStart}"
                             Click="SeekStartButton_OnClick" Padding="10,4" Margin="4,0,0,0" IsEnabled="False"/>
                 </StackPanel>

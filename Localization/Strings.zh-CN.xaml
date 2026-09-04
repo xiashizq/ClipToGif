@@ -68,6 +68,11 @@
     <sys:String x:Key="VideoMissing">视频文件已不存在</sys:String>
     <sys:String x:Key="Play">播放</sys:String>
     <sys:String x:Key="Pause">暂停</sys:String>
+    <sys:String x:Key="PlayTooltip">播放整段视频</sys:String>
+    <sys:String x:Key="PauseTooltip">点击暂停</sys:String>
+    <sys:String x:Key="PlayRange">区间播放</sys:String>
+    <sys:String x:Key="PlayRangeTooltip">只播放当前选区，到终点后停止</sys:String>
+    <sys:String x:Key="PauseRangeTooltip">暂停区间播放</sys:String>
     <sys:String x:Key="SeekToStart">跳到起点</sys:String>
     <sys:String x:Key="Volume">音量</sys:String>
     <sys:String x:Key="Mute">静音</sys:String>
@@ -98,6 +103,10 @@
     <sys:String x:Key="TotalDuration">总时长 {0}</sys:String>
     <sys:String x:Key="RangeStart">起点 {0}</sys:String>
     <sys:String x:Key="RangeEnd">终点 {0}</sys:String>
+    <sys:String x:Key="RangeStartLabel">起点</sys:String>
+    <sys:String x:Key="RangeEndLabel">终点</sys:String>
+    <sys:String x:Key="RangeTimeTooltip">输入时间后按回车确认。支持 00:26.35 或直接输入秒数，例如 86.35</sys:String>
+    <sys:String x:Key="RangeTimeInvalid">时间格式无效。请输入 00:26.35，或直接输入秒数。</sys:String>
     <sys:String x:Key="CurrentPosition">当前位置 {0}</sys:String>
     <sys:String x:Key="Selection">选区 {0}</sys:String>
     <sys:String x:Key="SelectVideoFirst">请先选择视频。</sys:String>

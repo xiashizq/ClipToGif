@@ -68,6 +68,11 @@
     <sys:String x:Key="VideoMissing">Video file is missing</sys:String>
     <sys:String x:Key="Play">Play</sys:String>
     <sys:String x:Key="Pause">Pause</sys:String>
+    <sys:String x:Key="PlayTooltip">Play the whole video</sys:String>
+    <sys:String x:Key="PauseTooltip">Click to pause</sys:String>
+    <sys:String x:Key="PlayRange">Play range</sys:String>
+    <sys:String x:Key="PlayRangeTooltip">Play only the selected range, then stop</sys:String>
+    <sys:String x:Key="PauseRangeTooltip">Pause range playback</sys:String>
     <sys:String x:Key="SeekToStart">Jump to start</sys:String>
     <sys:String x:Key="Volume">Volume</sys:String>
     <sys:String x:Key="Mute">Mute</sys:String>
@@ -98,6 +103,10 @@
     <sys:String x:Key="TotalDuration">Duration {0}</sys:String>
     <sys:String x:Key="RangeStart">Start {0}</sys:String>
     <sys:String x:Key="RangeEnd">End {0}</sys:String>
+    <sys:String x:Key="RangeStartLabel">Start</sys:String>
+    <sys:String x:Key="RangeEndLabel">End</sys:String>
+    <sys:String x:Key="RangeTimeTooltip">Press Enter to apply. Use 00:26.35, or seconds such as 86.35</sys:String>
+    <sys:String x:Key="RangeTimeInvalid">Invalid time. Enter 00:26.35, or a number of seconds.</sys:String>
     <sys:String x:Key="CurrentPosition">Position {0}</sys:String>
     <sys:String x:Key="Selection">Range {0}</sys:String>
     <sys:String x:Key="SelectVideoFirst">Select a video first.</sys:String>

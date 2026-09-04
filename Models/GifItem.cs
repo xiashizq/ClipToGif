@@ -108,7 +108,7 @@ public sealed class GifItem : INotifyPropertyChanged
         }
     }
 
-    public string RangeText => $"{Start:mm\\:ss\\.f} → {End:mm\\:ss\\.f}";
+    public string RangeText => $"{Start:mm\\:ss\\.ff} → {End:mm\\:ss\\.ff}";
 
     public string SizeText => Height > 0 ? $"{Width}×{Height}" : Loc.Format("GifWidthOnly", Width);
 
