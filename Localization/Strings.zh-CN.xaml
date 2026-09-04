@@ -73,6 +73,15 @@
     <sys:String x:Key="Mute">静音</sys:String>
     <sys:String x:Key="Unmute">取消静音</sys:String>
     <sys:String x:Key="RangeDragTooltip">拖动可平移 GIF 选区</sys:String>
+    <sys:String x:Key="TimelineTitle">时间轴</sys:String>
+    <sys:String x:Key="TimelineZoom">缩放</sys:String>
+    <sys:String x:Key="TimelineZoomHint">Ctrl / Alt + 滚轮缩放 · 滚轮平移</sys:String>
+    <sys:String x:Key="TimelineZoomTooltip">调整时间轴缩放级别</sys:String>
+    <sys:String x:Key="TimelineZoomInTooltip">放大时间轴（Ctrl + +）</sys:String>
+    <sys:String x:Key="TimelineZoomOutTooltip">缩小时间轴（Ctrl + -）</sys:String>
+    <sys:String x:Key="TimelineFit">适合</sys:String>
+    <sys:String x:Key="TimelineFitTooltip">显示完整视频</sys:String>
+    <sys:String x:Key="TimelinePanTooltip">拖动浏览已放大的时间轴</sys:String>
     <sys:String x:Key="FfmpegNotFound">未检测到 FFmpeg</sys:String>
     <sys:String x:Key="OpenVideoTitle">选择视频</sys:String>
     <sys:String x:Key="OpenVideoFilter">视频文件</sys:String>
