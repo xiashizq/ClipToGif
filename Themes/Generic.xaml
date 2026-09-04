@@ -2,70 +2,124 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:controls="clr-namespace:ClipToGif.Controls">
     <Style TargetType="{x:Type controls:TimeRangeSlider}">
-        <Setter Property="Height" Value="52"/>
+        <Setter Property="Height" Value="104"/>
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type controls:TimeRangeSlider}">
-                    <Grid Margin="0,8" HorizontalAlignment="Stretch">
-                        <Border Height="8"
-                                CornerRadius="4"
-                                Background="#C9D0D8"
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Stretch"
-                                Margin="8,0"/>
+                    <Grid HorizontalAlignment="Stretch">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="26"/>
+                            <RowDefinition Height="52"/>
+                            <RowDefinition Height="18"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.RowSpan="2"
+                                Background="#17202C"
+                                BorderBrush="#263446"
+                                BorderThickness="1"
+                                CornerRadius="8"/>
+
+                        <Canvas x:Name="PART_RulerCanvas"
+                                Grid.Row="0"
+                                Margin="1,1,1,0"
+                                ClipToBounds="True"
+                                IsHitTestVisible="False"/>
+
                         <Canvas x:Name="PART_TrackCanvas"
-                                ClipToBounds="False"
+                                Grid.Row="1"
+                                Margin="1,0,1,1"
+                                ClipToBounds="True"
                                 HorizontalAlignment="Stretch">
+                            <Border Height="32"
+                                    Background="#222E3D"
+                                    BorderBrush="#304157"
+                                    BorderThickness="1"
+                                    CornerRadius="5"
+                                    Canvas.Left="8"
+                                    Canvas.Top="5"
+                                    Width="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"/>
+
                             <!-- 点击轨道跳转播放位置 -->
                             <Border x:Name="PART_TrackHit"
-                                    Height="28"
+                                    Height="46"
                                     Background="Transparent"
                                     Cursor="Hand"
                                     Canvas.Left="0"
-                                    Canvas.Top="10"
+                                    Canvas.Top="0"
                                     Width="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"/>
+
                             <Border x:Name="PART_Selection"
-                                    Height="8"
-                                    CornerRadius="4"
-                                    Background="#0F766E"
-                                    Opacity="0.85"
+                                    Height="32"
+                                    CornerRadius="5"
+                                    BorderBrush="#2DD4BF"
+                                    BorderThickness="1"
+                                    Opacity="0.92"
                                     IsHitTestVisible="False"
-                                    Canvas.Top="20"/>
+                                    Canvas.Top="5">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#178A80" Offset="0"/>
+                                        <GradientStop Color="#0F675F" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+
                             <Border x:Name="PART_RangeHit"
-                                    Height="28"
+                                    Height="32"
                                     Background="#01000000"
                                     Cursor="SizeAll"
                                     ToolTip="{DynamicResource RangeDragTooltip}"
-                                    Canvas.Top="10"
+                                    Canvas.Top="5"
                                     Panel.ZIndex="1"/>
-                            <Thumb x:Name="PART_StartThumb" Width="12" Height="28" Canvas.Top="10" Cursor="SizeWE" Panel.ZIndex="2">
-                                <Thumb.Template>
-                                    <ControlTemplate TargetType="Thumb">
-                                        <Border Background="#FFFFFF" BorderBrush="#0F766E" BorderThickness="2" CornerRadius="3"/>
-                                    </ControlTemplate>
-                                </Thumb.Template>
-                            </Thumb>
-                            <Thumb x:Name="PART_EndThumb" Width="12" Height="28" Canvas.Top="10" Cursor="SizeWE" Panel.ZIndex="2">
-                                <Thumb.Template>
-                                    <ControlTemplate TargetType="Thumb">
-                                        <Border Background="#FFFFFF" BorderBrush="#0F766E" BorderThickness="2" CornerRadius="3"/>
-                                    </ControlTemplate>
-                                </Thumb.Template>
-                            </Thumb>
-                            <!-- 可拖动播放光标 -->
-                            <Thumb x:Name="PART_PlayheadThumb" Width="14" Height="36" Canvas.Top="6" Cursor="Hand" Panel.ZIndex="3">
+
+                            <Thumb x:Name="PART_StartThumb" Width="12" Height="38" Canvas.Top="2" Cursor="SizeWE" Panel.ZIndex="2">
                                 <Thumb.Template>
                                     <ControlTemplate TargetType="Thumb">
                                         <Grid>
-                                            <Rectangle Width="3" Height="36" Fill="#D97706" HorizontalAlignment="Center"/>
-                                            <Ellipse Width="12" Height="12" Fill="#D97706" Stroke="#FFFFFF" StrokeThickness="2"
-                                                     VerticalAlignment="Top" Margin="0,0,0,0"/>
+                                            <Border Background="#F8FAFC" BorderBrush="#2DD4BF" BorderThickness="2" CornerRadius="3"/>
+                                            <Rectangle Width="2" Height="14" Fill="#0F766E" RadiusX="1" RadiusY="1"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+
+                            <Thumb x:Name="PART_EndThumb" Width="12" Height="38" Canvas.Top="2" Cursor="SizeWE" Panel.ZIndex="2">
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Grid>
+                                            <Border Background="#F8FAFC" BorderBrush="#2DD4BF" BorderThickness="2" CornerRadius="3"/>
+                                            <Rectangle Width="2" Height="14" Fill="#0F766E" RadiusX="1" RadiusY="1"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+
+                            <!-- 可拖动播放光标 -->
+                            <Thumb x:Name="PART_PlayheadThumb" Width="16" Height="50" Canvas.Top="0" Cursor="Hand" Panel.ZIndex="3">
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Grid>
+                                            <Rectangle Width="2" Height="44" Fill="#F59E0B" HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                                            <Path Data="M 2,1 L 14,1 L 14,8 L 8,13 L 2,8 Z"
+                                                  Fill="#F59E0B"
+                                                  Stroke="#FFF7ED"
+                                                  StrokeThickness="1"/>
                                         </Grid>
                                     </ControlTemplate>
                                 </Thumb.Template>
                             </Thumb>
                         </Canvas>
+
+                        <ScrollBar x:Name="PART_HorizontalScroll"
+                                   Grid.Row="2"
+                                   Orientation="Horizontal"
+                                   Height="10"
+                                   Margin="5,5,5,0"
+                                   VerticalAlignment="Top"
+                                   Background="#DCE3EA"
+                                   Foreground="#64748B"
+                                   ToolTip="{DynamicResource TimelinePanTooltip}"/>
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>

@@ -73,6 +73,15 @@
     <sys:String x:Key="Mute">Mute</sys:String>
     <sys:String x:Key="Unmute">Unmute</sys:String>
     <sys:String x:Key="RangeDragTooltip">Drag to move the GIF range</sys:String>
+    <sys:String x:Key="TimelineTitle">Timeline</sys:String>
+    <sys:String x:Key="TimelineZoom">Zoom</sys:String>
+    <sys:String x:Key="TimelineZoomHint">Ctrl / Alt + wheel to zoom · wheel to pan</sys:String>
+    <sys:String x:Key="TimelineZoomTooltip">Set the timeline zoom level</sys:String>
+    <sys:String x:Key="TimelineZoomInTooltip">Zoom in (Ctrl + +)</sys:String>
+    <sys:String x:Key="TimelineZoomOutTooltip">Zoom out (Ctrl + -)</sys:String>
+    <sys:String x:Key="TimelineFit">Fit</sys:String>
+    <sys:String x:Key="TimelineFitTooltip">Show the full video</sys:String>
+    <sys:String x:Key="TimelinePanTooltip">Drag to browse the zoomed timeline</sys:String>
     <sys:String x:Key="FfmpegNotFound">FFmpeg not found</sys:String>
     <sys:String x:Key="OpenVideoTitle">Select videos</sys:String>
     <sys:String x:Key="OpenVideoFilter">Video files</sys:String>

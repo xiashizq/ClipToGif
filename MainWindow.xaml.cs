@@ -341,6 +341,7 @@ public partial class MainWindow : Window
         RemoveButton.IsEnabled = _currentVideo is not null || VideoList.SelectedItem is not null;
         Player.SetChromeEnabled(enabled && !videoMissing);
         RangeSlider.IsEnabled = enabled && !_isGenerating;
+        TimelineZoomSlider.IsEnabled = enabled && !_isGenerating;
         ExportPanel.IsEnabled = enabled || _isGenerating;
         GenerateButton.IsEnabled = enabled && !_isGenerating;
         if (CancelGenerateButton is not null)
@@ -447,6 +448,7 @@ public partial class MainWindow : Window
         if (RangeSlider.IsDraggingPlayhead)
             return;
         RangeSlider.Position = seconds;
+        RangeSlider.EnsureVisible(seconds);
         UpdatePositionLabels(seconds);
         UpdatePlayerTimeText(seconds);
     }
@@ -476,6 +478,7 @@ public partial class MainWindow : Window
         RangeSlider.Start = 0;
         RangeSlider.End = totalSeconds;
         RangeSlider.Position = 0;
+        RangeSlider.FitToDuration();
         _suppressRangeEvents = false;
 
         DurationStartLabel.Text = "00:00";
@@ -505,6 +508,53 @@ public partial class MainWindow : Window
         seconds = Math.Clamp(seconds, 0, Math.Max(0, RangeSlider.Maximum));
         Player.Seek(seconds);
         UpdatePositionLabels(seconds);
+    }
+
+    private void TimelineZoomSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (ZoomValueText is not null)
+            ZoomValueText.Text = $"{e.NewValue * 100:0}%";
+    }
+
+    private void TimelineZoomIn_OnClick(object sender, RoutedEventArgs e) =>
+        ChangeTimelineZoom(1.25);
+
+    private void TimelineZoomOut_OnClick(object sender, RoutedEventArgs e) =>
+        ChangeTimelineZoom(0.8);
+
+    private void TimelineFit_OnClick(object sender, RoutedEventArgs e) =>
+        RangeSlider.FitToDuration();
+
+    private void ChangeTimelineZoom(double factor)
+    {
+        if (!RangeSlider.IsEnabled)
+            return;
+        RangeSlider.ZoomAt(RangeSlider.ZoomLevel * factor, RangeSlider.Position);
+    }
+
+    private void Window_OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == 0)
+            return;
+
+        switch (e.Key)
+        {
+            case System.Windows.Input.Key.Add:
+            case System.Windows.Input.Key.OemPlus:
+                ChangeTimelineZoom(1.25);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.Subtract:
+            case System.Windows.Input.Key.OemMinus:
+                ChangeTimelineZoom(0.8);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.D0:
+            case System.Windows.Input.Key.NumPad0:
+                RangeSlider.FitToDuration();
+                e.Handled = true;
+                break;
+        }
     }
 
     private void SeekTo(double seconds, bool updateSlider = true)
