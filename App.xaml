@@ -37,15 +37,6 @@
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="12"/>
                 <Setter Property="Padding" Value="14"/>
-                <Setter Property="Effect">
-                    <Setter.Value>
-                        <DropShadowEffect Color="#1E293B"
-                                          BlurRadius="14"
-                                          ShadowDepth="2"
-                                          Direction="270"
-                                          Opacity="0.08"/>
-                    </Setter.Value>
-                </Setter>
             </Style>
 
             <Style x:Key="SectionTitle" TargetType="TextBlock">
