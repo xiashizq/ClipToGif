@@ -40,6 +40,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = this;
+        ConfigureInitialWindowSize();
 
         var startDesc = DependencyPropertyDescriptor.FromProperty(
             TimeRangeSlider.StartProperty, typeof(TimeRangeSlider));
@@ -58,6 +59,17 @@ public partial class MainWindow : Window
         PopulateCompressionBox();
         PopulateScaleBox();
         PopulateSizeLimitBox();
+    }
+
+    private void ConfigureInitialWindowSize()
+    {
+        const double screenMargin = 32;
+        var workArea = SystemParameters.WorkArea;
+        var availableWidth = Math.Max(MinWidth, workArea.Width - screenMargin);
+        var availableHeight = Math.Max(MinHeight, workArea.Height - screenMargin);
+
+        Width = Math.Min(1400, availableWidth);
+        Height = Math.Min(900, availableHeight);
     }
 
     private async Task OnLoadedAsync()
@@ -872,13 +884,13 @@ public partial class MainWindow : Window
         _convertCts = new CancellationTokenSource();
         var cts = _convertCts;
         SetGeneratingUi(generating: true);
-        ProgressBar.Value = 0;
+        SetConversionProgress(0);
         StatusText.Text = Loc.Get("GeneratingGif");
 
         var progress = new Progress<double>(p =>
         {
             if (cts.IsCancellationRequested) return;
-            ProgressBar.Value = p;
+            SetConversionProgress(p);
             if (settings.MaxBytes <= 0)
                 StatusText.Text = Loc.Format("GeneratingGifProgress", p);
         });
@@ -909,7 +921,7 @@ public partial class MainWindow : Window
             pending.FileSizeBytes = result.FileSizeBytes;
             pending.StatusKey = "StatusDone";
             pending.RefreshThumbnail();
-            ProgressBar.Value = 1;
+            SetConversionProgress(1);
 
             var sizeText = FfmpegGifService.FormatFileSize(result.FileSizeBytes);
             if (result.ExceededSizeLimit)
@@ -937,12 +949,13 @@ public partial class MainWindow : Window
         {
             DiscardPendingGif(owner, pending, outputPath);
             StatusText.Text = Loc.Get("GenerateCanceled");
-            ProgressBar.Value = 0;
+            SetConversionProgress(0);
         }
         catch (Exception ex)
         {
             DiscardPendingGif(owner, pending, outputPath);
             StatusText.Text = Loc.Get("GenerateFailed");
+            SetConversionProgress(0);
             MessageBox.Show(this, ex.Message, Loc.Get("GenerateFailed"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -967,11 +980,19 @@ public partial class MainWindow : Window
         GenerateButton.Visibility = generating ? Visibility.Collapsed : Visibility.Visible;
         CancelGenerateButton.Visibility = generating ? Visibility.Visible : Visibility.Collapsed;
         CancelGenerateButton.IsEnabled = generating;
+        ProgressValueText.Visibility = generating ? Visibility.Visible : Visibility.Collapsed;
 
         if (_currentVideo is not null)
             SetWorkspaceEnabled(!_currentVideo.IsMissing, _currentVideo.IsMissing);
         else
             SetWorkspaceEnabled(enabled: false, videoMissing: false);
+    }
+
+    private void SetConversionProgress(double value)
+    {
+        value = Math.Clamp(value, 0, 1);
+        ProgressBar.Value = value;
+        ProgressValueText.Text = value.ToString("P0", CultureInfo.CurrentCulture);
     }
 
     private void DiscardPendingGif(VideoItem owner, GifItem pending, string outputPath)
